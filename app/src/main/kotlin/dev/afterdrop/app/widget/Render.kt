@@ -83,6 +83,8 @@ class Env(
     val padFactor: Float = 1f,
     /** The system font size setting. */
     val fontScale: Float = 1f,
+    /** The widest any one node may be, in dp: the widget's width less its edge margins. */
+    val maxWidth: Float = 10_000f,
 )
 
 /** Content never sits closer than this to the widget edge, so rounded corners cannot clip it. */
@@ -117,7 +119,7 @@ fun WidgetContent(appWidgetId: Int) {
             runCatching { custom[role] = Color(android.graphics.Color.parseColor((hex as JString).value)) }
         }
     }
-    val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale)
+    val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f))
     Box(frame) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
 }
 
@@ -152,7 +154,13 @@ private fun fontSize(style: String?) = when (style) {
     else -> 14
 }
 
-private val FILLS_COLUMN = setOf("row", "list", "divider", "chart")
+// Checkboxes and switches span the column too, so their boxes line up under one another
+// instead of each being centred on its own label.
+private val FILLS_COLUMN = setOf("row", "list", "divider", "chart", "check", "toggle")
+
+/** A spacer with no size of its own is meant as stretchy space between its neighbours. */
+private fun stretches(kid: RNode) =
+    (kid.node.int("grow") ?: 0) > 0 || (kid.type == "spacer" && !kid.node.has("w") && !kid.node.has("h"))
 
 private fun run(key: String, op: String): Action =
     actionRunCallback<WidgetCallback>(actionParametersOf(AfterdropWidget.KEY to key, AfterdropWidget.OP to op))
@@ -184,7 +192,8 @@ private fun lineBox(mod: GlanceModifier, node: dev.afterdrop.spec.Node, sample: 
     val size = fontSize(node.text("style")) * env.textFactor * env.fontScale
     var m = mod
     if (!node.has("h")) m = m.height((size * 1.35f).dp)
-    if (!node.has("w") && (node.int("grow") ?: 0) == 0) m = m.width((sample.length * size * 0.62f + 6f).dp)
+    // Never wider than the widget itself: in a very narrow widget the text is cut, not pushed outside.
+    if (!node.has("w") && (node.int("grow") ?: 0) == 0) m = m.width(Math.min(sample.length * size * 0.62f + 6f, env.maxWidth).dp)
     return m
 }
 
@@ -244,7 +253,7 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
                 if (between && i > 0) Spacer(GlanceModifier.defaultWeight())
                 if (spacers && i > 0) Spacer(GlanceModifier.height(gap.dp))
                 var km: GlanceModifier = GlanceModifier
-                if ((kid.node.int("grow") ?: 0) > 0) km = km.defaultWeight()
+                if (stretches(kid)) km = km.defaultWeight()
                 if (!between && !spacers && i > 0 && gap > 0) km = km.padding(top = gap.dp)
                 // Rows and lists span the column, so "between" and growing children have room to work.
                 if (kid.type in FILLS_COLUMN && !kid.node.has("w")) km = km.fillMaxWidth()
@@ -257,7 +266,7 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
                 if (between && i > 0) Spacer(GlanceModifier.defaultWeight())
                 if (spacers && i > 0) Spacer(GlanceModifier.width(gap.dp))
                 var km: GlanceModifier = GlanceModifier
-                if ((kid.node.int("grow") ?: 0) > 0) km = km.defaultWeight()
+                if (stretches(kid)) km = km.defaultWeight()
                 if (!between && !spacers && i > 0 && gap > 0) km = km.padding(start = gap.dp)
                 NodeView(kid, km, env)
             }
