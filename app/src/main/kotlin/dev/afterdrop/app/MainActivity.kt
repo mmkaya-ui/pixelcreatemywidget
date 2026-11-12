@@ -201,7 +201,10 @@ class MainActivity : ComponentActivity() {
                                 val wanted = ask
                                 lifecycleScope.launch {
                                     val out = withContext(Dispatchers.IO) {
-                                        runCatching { Generator.generate(wanted, Gemini(GeminiTransport, key.trim()), LocalDate.now()) }
+                                        runCatching {
+                                            val gemini = Gemini(GeminiTransport, key.trim(), Store(this@MainActivity).model)
+                                            Generator.generate(wanted, gemini, LocalDate.now()).also { Store(this@MainActivity).model = gemini.modelName }
+                                        }
                                             .getOrElse { Outcome.Failed("Something went wrong: ${it.message}") }
                                     }
                                     busy = false
@@ -274,7 +277,10 @@ class MainActivity : ComponentActivity() {
                                                 val wanted = ask
                                                 lifecycleScope.launch {
                                                     val out = withContext(Dispatchers.IO) {
-                                                        runCatching { Generator.edit(spec, wanted, Gemini(GeminiTransport, key.trim())) }
+                                                        runCatching {
+                                                            val gemini = Gemini(GeminiTransport, key.trim(), Store(this@MainActivity).model)
+                                                            Generator.edit(spec, wanted, gemini).also { Store(this@MainActivity).model = gemini.modelName }
+                                                        }
                                                             .getOrElse { Outcome.Failed("Something went wrong: ${it.message}") }
                                                     }
                                                     busy = false

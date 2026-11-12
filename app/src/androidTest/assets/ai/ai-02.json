@@ -1,0 +1,61 @@
+{
+  "v": 1,
+  "name": "Bike Ride Weather",
+  "size": {
+    "cols": 3,
+    "rows": 2
+  },
+  "sources": {
+    "wx": {
+      "use": "weather",
+      "with": {
+        "place": "current",
+        "units": "metric"
+      },
+      "every": "1h"
+    }
+  },
+  "root": {
+    "t": "col",
+    "pad": 12,
+    "gap": 8,
+    "cross": "start",
+    "kids": [
+      {
+        "t": "row",
+        "gap": 8,
+        "cross": "center",
+        "kids": [
+          {
+            "t": "icon",
+            "icon": "directions_bike",
+            "color": "primary",
+            "iconSize": 24
+          },
+          {
+            "t": "text",
+            "text": "{wx.now.temp}° • {wx.now.wind} km/h",
+            "style": "headline"
+          }
+        ]
+      },
+      {
+        "t": "text",
+        "text": "{wx.now.summary}",
+        "style": "body",
+        "color": "muted",
+        "lines": 1
+      },
+      {
+        "t": "chart",
+        "kind": "bars",
+        "values": "pluck(wx.hourly, 'rainChance')",
+        "min": 0,
+        "max": 100,
+        "color": "secondary",
+        "grow": 1,
+        "w": "fill"
+      }
+    ]
+  }
+}

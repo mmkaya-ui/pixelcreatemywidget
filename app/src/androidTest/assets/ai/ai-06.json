@@ -1,0 +1,98 @@
+{
+  "v": 1,
+  "name": "Morning Dashboard",
+  "size": {
+    "cols": 4,
+    "rows": 2
+  },
+  "sources": {
+    "wx": {
+      "use": "weather",
+      "with": {
+        "place": "current",
+        "units": "metric"
+      },
+      "every": "1h"
+    },
+    "bat": {
+      "use": "battery",
+      "every": "30m"
+    }
+  },
+  "root": {
+    "t": "col",
+    "pad": 16,
+    "gap": 12,
+    "cross": "center",
+    "kids": [
+      {
+        "t": "row",
+        "gap": 12,
+        "cross": "center",
+        "kids": [
+          {
+            "t": "clock",
+            "style": "headline",
+            "format": "HH:mm"
+          },
+          {
+            "t": "spacer"
+          },
+          {
+            "t": "button",
+            "label": "Tagesschau",
+            "kind": "tonal",
+            "icon": "newspaper",
+            "tap": {
+              "do": "open_url",
+              "url": "https://www.tagesschau.de"
+            }
+          }
+        ]
+      },
+      {
+        "t": "row",
+        "gap": 16,
+        "cross": "center",
+        "kids": [
+          {
+            "t": "row",
+            "gap": 8,
+            "cross": "center",
+            "kids": [
+              {
+                "t": "icon",
+                "icon": "wb_sunny",
+                "iconSize": 24,
+                "color": "primary"
+              },
+              {
+                "t": "text",
+                "text": "{wx.now.temp}°C",
+                "style": "title"
+              }
+            ]
+          },
+          {
+            "t": "row",
+            "gap": 8,
+            "cross": "center",
+            "kids": [
+              {
+                "t": "icon",
+                "icon": "battery_full",
+                "iconSize": 24,
+                "color": "secondary"
+              },
+              {
+                "t": "text",
+                "text": "{bat.level}%",
+                "style": "title"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

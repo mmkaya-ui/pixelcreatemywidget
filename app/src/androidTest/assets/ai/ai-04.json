@@ -1,0 +1,59 @@
+{
+  "v": 1,
+  "name": "Battery Status",
+  "size": {
+    "cols": 2,
+    "rows": 2
+  },
+  "sources": {
+    "bat": {
+      "use": "battery"
+    }
+  },
+  "calc": {
+    "level": "bat.level",
+    "isLow": "bat.level < 20"
+  },
+  "root": {
+    "t": "col",
+    "pad": 16,
+    "gap": 12,
+    "cross": "center",
+    "align": "center",
+    "kids": [
+      {
+        "t": "row",
+        "gap": 8,
+        "cross": "center",
+        "kids": [
+          {
+            "t": "icon",
+            "icon": "battery_full",
+            "color": "primary",
+            "iconSize": 28
+          },
+          {
+            "t": "text",
+            "text": "{level}%",
+            "style": "headline"
+          }
+        ]
+      },
+      {
+        "t": "progress",
+        "shape": "bar",
+        "value": "level / 100",
+        "color": "primary",
+        "w": "fill",
+        "grow": 1
+      },
+      {
+        "t": "text",
+        "text": "Warning: Battery is low!",
+        "style": "caption",
+        "color": "error",
+        "if": "isLow"
+      }
+    ]
+  }
+}

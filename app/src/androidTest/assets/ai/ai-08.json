@@ -1,0 +1,58 @@
+{
+  "v": 1,
+  "name": "Daily Habits",
+  "size": {
+    "cols": 2,
+    "rows": 2
+  },
+  "vars": {
+    "read": {
+      "type": "bool",
+      "init": false,
+      "reset": "daily"
+    },
+    "stretch": {
+      "type": "bool",
+      "init": false,
+      "reset": "daily"
+    },
+    "noSugar": {
+      "type": "bool",
+      "init": false,
+      "reset": "daily"
+    }
+  },
+  "calc": {
+    "doneCount": "(read ? 1 : 0) + (stretch ? 1 : 0) + (noSugar ? 1 : 0)"
+  },
+  "root": {
+    "t": "col",
+    "pad": 12,
+    "gap": 8,
+    "cross": "center",
+    "kids": [
+      {
+        "t": "text",
+        "text": "{doneCount} of 3 done",
+        "style": "title",
+        "color": "secondary",
+        "bold": true
+      },
+      {
+        "t": "check",
+        "var": "read",
+        "label": "Read"
+      },
+      {
+        "t": "check",
+        "var": "stretch",
+        "label": "Stretch"
+      },
+      {
+        "t": "check",
+        "var": "noSugar",
+        "label": "No sugar"
+      }
+    ]
+  }
+}

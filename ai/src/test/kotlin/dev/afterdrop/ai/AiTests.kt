@@ -194,6 +194,19 @@ private val gemini = suite("gemini") {
         eq(GOOD, (g.complete("x") as Reply.Text).text)
         eq(listOf("gemini-3.5-flash", "gemini-2.5-flash"), asked)
     }
+    test("a remembered model that stops working is replaced from the list") {
+        val asked = ArrayList<String>()
+        val g = Gemini({ r ->
+            if (r.method == "GET") HttpResponse(200, models("gemini-3.5-flash", "gemini-2.5-flash"))
+            else {
+                asked += r.url.substringAfter("models/").substringBefore(":")
+                if ("old-flash" in r.url) HttpResponse(404, "{}") else HttpResponse(200, answer(GOOD))
+            }
+        }, "k", "gemini-old-flash")
+        eq(GOOD, (g.complete("x") as Reply.Text).text)
+        eq(listOf("gemini-old-flash", "gemini-3.5-flash"), asked)
+        eq("gemini-3.5-flash", g.modelName)
+    }
     test("a stated model skips the list call") {
         val seen = ArrayList<String>()
         Gemini({ r -> seen += r.method; HttpResponse(200, answer("{}")) }, "k", "gemini-9-flash").complete("x")

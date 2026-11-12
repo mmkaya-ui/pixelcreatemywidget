@@ -50,6 +50,8 @@ class Gemini(private val transport: Transport, private val apiKey: String, priva
                 "needs paid credits" in it || "was not found" in it || "took too long" in it || "having trouble" in it || "quota" in it
             }
             if (!blocked) return last
+            // A model named by the caller has no list yet: fetch it now so there is somewhere to go.
+            if (queue == null) pickModel()
             model = queue?.let { q -> q.remove(name); q.firstOrNull() }
         }
         return last

@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "name": "Tokyo Clock",
+  "size": {
+    "cols": 3,
+    "rows": 2
+  },
+  "root": {
+    "t": "col",
+    "pad": 16,
+    "gap": 8,
+    "cross": "center",
+    "align": "center",
+    "kids": [
+      {
+        "t": "clock",
+        "style": "display",
+        "color": "primary",
+        "format": "HH:mm",
+        "zone": "Asia/Tokyo"
+      },
+      {
+        "t": "text",
+        "style": "title",
+        "color": "muted",
+        "text": "{fmt(now(), 'EEEE, MMMM d')}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "v": 1,
+  "name": "EUR to TRY",
+  "size": {
+    "cols": 4,
+    "rows": 3
+  },
+  "sources": {
+    "eurtry": {
+      "use": "rates",
+      "with": {
+        "base": "EUR",
+        "quote": "TRY",
+        "days": 30
+      },
+      "every": "1d"
+    }
+  },
+  "calc": {
+    "latest": "eurtry.rate",
+    "hist": "eurtry.history",
+    "firstVal": "first(hist)",
+    "change": "num(((latest - firstVal) / firstVal) * 100)"
+  },
+  "root": {
+    "t": "col",
+    "pad": 16,
+    "gap": 12,
+    "kids": [
+      {
+        "t": "row",
+        "align": "between",
+        "cross": "center",
+        "kids": [
+          {
+            "t": "text",
+            "text": "EUR / TRY",
+            "style": "title",
+            "bold": true
+          },
+          {
+            "t": "text",
+            "text": "{change}%",
+            "style": "label",
+            "color": "success"
+          }
+        ]
+      },
+      {
+        "t": "text",
+        "text": "{latest}",
+        "style": "display",
+        "bold": true
+      },
+      {
+        "t": "chart",
+        "kind": "spark",
+        "values": "hist",
+        "color": "primary",
+        "grow": 1
+      }
+    ]
+  }
+}

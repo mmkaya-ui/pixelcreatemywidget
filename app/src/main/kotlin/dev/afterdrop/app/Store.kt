@@ -104,6 +104,13 @@ class Store(context: Context) {
         prefs.edit().putString(cacheSlot(key), Json.write(entry)).commit()
     }
 
+    /** The Gemini model that last answered, so the next request does not have to search for one again. */
+    var model: String?
+        get() = prefs.getString("gemini.model", null)
+        set(value) {
+            prefs.edit().putString("gemini.model", value).commit()
+        }
+
     /** Specs the user pasted, by name. */
     fun userSpecs(): Map<String, String> {
         val text = prefs.getString("user", null) ?: return emptyMap()

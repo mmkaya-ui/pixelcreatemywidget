@@ -237,7 +237,7 @@ class WidgetHostTest {
         waitFor(p, "the starting count") { "0 of 8 glasses" in it }
         click(p, "+")
         waitFor(p, "one glass") { "1 of 8 glasses" in it }
-        val changed = Store(context).rebind("Water today", asset("water-today").replace("glasses\"", "cups\"").replace("of {goal} glasses", "of {goal} cups"))
+        val changed = Store(context).rebind("Water today", asset("water-today").replace("of {goal} glasses", "of {goal} cups"))
         assertTrue("no placed widget was found by name", changed >= 1)
         runBlocking { AfterdropWidget.refresh(context, GlanceAppWidgetManager(context).getGlanceIdBy(p.id)) }
         waitFor(p, "the new wording with the old count") { "1 of 8 cups" in it }
@@ -303,6 +303,57 @@ class WidgetHostTest {
     @Test
     fun homeScreenWall() {
         wall("wall-light")
+    }
+
+    /**
+     * Widgets a real model wrote (Gemini, recorded from the live check), placed at the sizes it chose and
+     * fed live data. They must stay inside their bounds like any other widget; the screenshots show how they look.
+     */
+    @Test
+    fun widgetsWrittenByTheModel() {
+        val testAssets = inst.context.assets
+        val specs = testAssets.list("ai")!!.sorted().associateWith { f -> testAssets.open("ai/$f").bufferedReader().use { it.readText() } }
+        assertTrue("no recorded model widgets", specs.size >= 6)
+        Store(context).home = dev.afterdrop.data.Place("Stuttgart, DE", 48.78, 9.18)
+        val parsed = specs.values.mapNotNull { (dev.afterdrop.spec.SpecReader.read(it) as? dev.afterdrop.spec.SpecResult.Ok)?.spec }
+        assertTrue("a recorded model widget is no longer valid", parsed.size == specs.size)
+        val fetched = Sources.refresh(context, parsed, HttpsFetcher, force = true)
+        Log.i(TAG, "model widgets: fetched $fetched sources")
+        scenario.onActivity { a -> a.addContentView(View(a).apply { setBackgroundColor(0xFF35506B.toInt()) }, FrameLayout.LayoutParams(-1, -1)) }
+        val problems = ArrayList<String>()
+        var y = 48
+        var shot = 1
+        val onScreen = ArrayList<Placed>()
+        fun flush() {
+            if (onScreen.isEmpty()) return
+            Thread.sleep(1500)
+            Shots.log("wall-ai-$shot")
+            shot++
+            for (p in onScreen) remove(p)
+            onScreen.clear()
+            y = 48
+        }
+        for ((file, json) in specs) {
+            val s = (dev.afterdrop.spec.SpecReader.read(json) as dev.afterdrop.spec.SpecResult.Ok).spec
+            val w = Math.min(s.cols, 4) * 92 + 4
+            val h = Math.min(s.rows, 3) * 92 - 4
+            if (y + h > 840) flush()
+            val p = place(json, w, h, 12, y)
+            val shown = waitFor(p, "$file to draw") { it.isNotEmpty() }
+            Thread.sleep(400)
+            val loc = IntArray(2)
+            inst.runOnMainSync { p.view.getLocationOnScreen(loc) }
+            val bounds = Rect(loc[0], loc[1], loc[0] + px(w), loc[1] + px(h))
+            for (i in dump(p.view)) {
+                if (i.kind != "Image" && (i.rect.width() <= 0 || i.rect.height() <= 0)) problems += "$file: ${i.kind} \"${i.text.take(20)}\" has no size"
+                else if (i.rect.width() > 0 && !bounds.contains(i.rect)) problems += "$file: ${i.kind} \"${i.text.take(20)}\" is outside its widget"
+            }
+            Log.i(TAG, "model widget $file ${s.name} ${w}x$h shows $shown")
+            onScreen += p
+            y += h + 12
+        }
+        flush()
+        if (problems.isNotEmpty()) fail("${problems.size} problem(s) in model-written widgets:\n" + problems.joinToString("\n"))
     }
 
     private fun wall(name: String) {
