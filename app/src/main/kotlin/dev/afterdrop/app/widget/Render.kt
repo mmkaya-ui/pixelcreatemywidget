@@ -85,7 +85,12 @@ class Env(
     val fontScale: Float = 1f,
     /** The widest any one node may be, in dp: the widget's width less its edge margins. */
     val maxWidth: Float = 10_000f,
-)
+    /** The tallest any one node may be, in dp. In a very short widget a button shrinks to this instead of being cut. */
+    val maxHeight: Float = 10_000f,
+) {
+    val buttonHeight: Float get() = Math.min(Fit.BUTTON.toFloat(), maxHeight)
+    val controlHeight: Float get() = Math.min(Fit.CONTROL.toFloat(), maxHeight)
+}
 
 /** Content never sits closer than this to the widget edge, so rounded corners cannot clip it. */
 private const val MIN_EDGE_DP = 8
@@ -126,7 +131,7 @@ fun WidgetContent(appWidgetId: Int) {
             runCatching { custom[role] = Color(android.graphics.Color.parseColor((hex as JString).value)) }
         }
     }
-    val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f))
+    val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f), Math.max(height - 2f * MIN_EDGE_DP, 24f))
     if (pageCount > 1) {
         Column(frame) {
             Box(GlanceModifier.defaultWeight().fillMaxWidth()) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
@@ -381,27 +386,27 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
         // 48 dp is the smallest comfortable touch target; Glance's own default is about half that.
         "button" -> Button(
             text = n.text ?: "", onClick = tapAction(n, env) ?: run(n.key, "refresh"),
-            modifier = if (node.has("h")) mod else mod.height(Fit.BUTTON.dp), maxLines = 1,
+            modifier = if (node.has("h")) mod else mod.height(env.buttonHeight.dp), maxLines = 1,
         )
         "toggle" -> Switch(
             checked = n.state?.truthy() ?: false, onCheckedChange = run(n.key, "toggle"),
-            modifier = if (node.has("h")) mod else mod.height(Fit.CONTROL.dp), text = n.text ?: "",
+            modifier = if (node.has("h")) mod else mod.height(env.controlHeight.dp), text = n.text ?: "",
         )
         // A bare checkbox is 32 dp tall. The surrounding box is the 40 dp touch target and toggles too.
         "check" -> Box(
-            (if (node.has("h")) mod else mod.height(Fit.CONTROL.dp)).clickable(run(n.key, "toggle")),
+            (if (node.has("h")) mod else mod.height(env.controlHeight.dp)).clickable(run(n.key, "toggle")),
             contentAlignment = Alignment.CenterStart,
         ) {
             CheckBox(checked = n.state?.truthy() ?: false, onCheckedChange = run(n.key, "toggle"), text = n.text ?: "")
         }
         "stepper" -> Row(mod, verticalAlignment = Alignment.Vertical.CenterVertically) {
-            Button(text = "−", onClick = run(n.key, "dec"), modifier = GlanceModifier.size(48.dp, Fit.CONTROL.dp), maxLines = 1)
+            Button(text = "−", onClick = run(n.key, "dec"), modifier = GlanceModifier.size(48.dp, env.controlHeight.dp), maxLines = 1)
             Text(
                 (n.state ?: Value.Null).display(),
                 modifier = GlanceModifier.padding(horizontal = 12.dp),
                 style = TextStyle(color = role("text", env), fontSize = 18.sp, fontWeight = FontWeight.Bold), maxLines = 1,
             )
-            Button(text = "+", onClick = run(n.key, "inc"), modifier = GlanceModifier.size(48.dp, Fit.CONTROL.dp), maxLines = 1)
+            Button(text = "+", onClick = run(n.key, "inc"), modifier = GlanceModifier.size(48.dp, env.controlHeight.dp), maxLines = 1)
         }
         "divider" -> Box((if (node.has("w")) mod else mod.fillMaxWidth()).height(1.dp).background(role(node.text("color") ?: "outline", env))) {}
         else -> Spacer(mod)
