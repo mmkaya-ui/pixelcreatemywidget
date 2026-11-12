@@ -35,6 +35,9 @@ fun main() {
         "wind and rain for my bike ride, with a small chart of rain chance",
         "a big clock for Tokyo with the date under it",
         "my battery level, and a warning line when it is under 20 percent",
+        "EUR to TRY exchange rate with a 30 day chart and today's change",
+        "a morning dashboard: time, weather now, battery, and a button that opens https://www.tagesschau.de",
+        "habit tracker with three daily checkboxes: read, stretch, no sugar, and a count of how many are done",
     )
     var good = 0
     var last: dev.afterdrop.spec.WidgetSpec? = null
@@ -46,6 +49,7 @@ fun main() {
             is Outcome.Ok -> {
                 if (out.by == "model") good++
                 last = out.spec
+                if (out.by == "model") println("LIVE SPEC " + Json.write(out.spec.json))
                 println("LIVE GEMINI: \"$ask\" -> \"${out.spec.name}\" by ${out.by}, ${out.attempts} call(s), ${secs}s, ${out.spec.root.all().count()} nodes" + (out.note?.let { " [$it]" } ?: ""))
             }
             is Outcome.Failed -> println("LIVE GEMINI: \"$ask\" FAILED after ${secs}s: ${out.reason}")
@@ -55,7 +59,10 @@ fun main() {
     println("LIVE GEMINI: model in use: ${gemini.modelName}; candidates left: ${gemini.candidates()}")
     last?.let { spec ->
         when (val out = Generator.edit(spec, "make the main text bold and use the secondary colour", gemini)) {
-            is Outcome.Ok -> println("LIVE GEMINI: edit ok in ${out.attempts} call(s); changed=${Json.write(out.spec.json) != Json.write(spec.json)}")
+            is Outcome.Ok -> {
+                println("LIVE GEMINI: edit ok in ${out.attempts} call(s); changed=${Json.write(out.spec.json) != Json.write(spec.json)}")
+                println("LIVE SPEC " + Json.write(out.spec.json))
+            }
             is Outcome.Failed -> println("LIVE GEMINI: edit FAILED: ${out.reason}")
         }
     }
