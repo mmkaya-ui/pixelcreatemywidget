@@ -48,7 +48,8 @@ TEXT AND FORMULAS
 "if", "value", "values", "to" and "of" are formulas. Operators: + - * / % == != < <= > >= && || ! and a ? b : c. Strings use single quotes. Read data with dots and [index].
 Functions (nothing else exists): ${Library.names.joinToString(", ")}.
 Times are epoch milliseconds: now(), today(), date('2026-12-24'), days(a, b), fmt(t, 'HH:mm').
-A "clock" node shows the live time by itself: {"t": "clock", "format": "HH:mm"}.
+A "clock" node shows the live time or date by itself: {"t": "clock", "format": "HH:mm"} or {"t": "clock", "format": "EEE d MMM"}. For another city give it "zone", for example "Asia/Tokyo"; now() and fmt() always use the phone's own zone, so show a date or time in another zone with a clock node, never with text.
+Round numbers you show: {num(wx.now.temp, 0)}.
 
 ACTIONS (for "tap")
 {"do": "refresh"} | {"do": "edit"} | {"do": "open_url", "url": "https://..."} | {"do": "open_app", "pkg": "com.example.app"} | {"do": "open_source", "source": name} | {"do": "set", "var": name, "to": formula} | {"do": "ask", "var": name, "title": "..."}

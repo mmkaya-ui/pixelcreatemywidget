@@ -175,9 +175,23 @@ private fun tapAction(n: RNode, env: Env): Action? = when (val t = n.tap) {
     Tap.SetVar -> run(n.key, "tap")
 }
 
-/** A clock or timer is an embedded view; without a stated height it takes all the room and hides what follows. */
-private fun lineBox(mod: GlanceModifier, hasHeight: Boolean, style: String?, env: Env): GlanceModifier =
-    if (hasHeight) mod else mod.height((fontSize(style) * 1.35f * env.textFactor * env.fontScale).dp)
+/**
+ * A clock or timer is an embedded view. Left alone it takes all the room, hiding what follows and
+ * ignoring its parent's alignment, so it gets the height of one line and the width of its own text.
+ * [sample] is the widest text it is likely to show.
+ */
+private fun lineBox(mod: GlanceModifier, node: dev.afterdrop.spec.Node, sample: String, env: Env): GlanceModifier {
+    val size = fontSize(node.text("style")) * env.textFactor * env.fontScale
+    var m = mod
+    if (!node.has("h")) m = m.height((size * 1.35f).dp)
+    if (!node.has("w") && (node.int("grow") ?: 0) == 0) m = m.width((sample.length * size * 0.62f + 6f).dp)
+    return m
+}
+
+/** What a clock format looks like with wide digits and long names, to measure its width. */
+private fun clockSample(format: String, locale: java.util.Locale): String = runCatching {
+    java.time.format.DateTimeFormatter.ofPattern(format, locale).format(java.time.LocalDateTime.of(2022, 9, 28, 22, 28, 58))
+}.getOrDefault(format)
 
 private fun horizontal(s: String?) = when (s) {
     "center" -> Alignment.Horizontal.CenterHorizontally
@@ -243,9 +257,7 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
                 if (between && i > 0) Spacer(GlanceModifier.defaultWeight())
                 if (spacers && i > 0) Spacer(GlanceModifier.width(gap.dp))
                 var km: GlanceModifier = GlanceModifier
-                // An embedded clock or timer would otherwise take the whole row and push its neighbours out.
-                val embedded = kid.type == "clock" || kid.type == "timer"
-                if ((kid.node.int("grow") ?: 0) > 0 || (embedded && n.kids.size > 1 && !kid.node.has("w"))) km = km.defaultWeight()
+                if ((kid.node.int("grow") ?: 0) > 0) km = km.defaultWeight()
                 if (!between && !spacers && i > 0 && gap > 0) km = km.padding(start = gap.dp)
                 NodeView(kid, km, env)
             }
@@ -287,11 +299,13 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
                     contentScale = ContentScale.Fit,
                 )
             } else {
-                LinearProgressIndicator(
-                    progress = fraction,
-                    modifier = if (node.has("w")) mod else mod.fillMaxWidth(),
-                    color = color, backgroundColor = track,
-                )
+                // A bar stays a thin bar. Given room to grow, it sits in the middle of that room instead of filling it.
+                Box(if (node.has("w")) mod else mod.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                    LinearProgressIndicator(
+                        progress = fraction, modifier = GlanceModifier.fillMaxWidth().height(8.dp),
+                        color = color, backgroundColor = track,
+                    )
+                }
             }
         }
         "chart" -> {
@@ -319,7 +333,8 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
             node.text("zone")?.let { rv.setString(R.id.clock, "setTimeZone", it) }
             rv.setTextColor(R.id.clock, color.getColor(env.context).toArgb())
             rv.setTextViewTextSize(R.id.clock, TypedValue.COMPLEX_UNIT_SP, fontSize(node.text("style")) * env.textFactor)
-            AndroidRemoteViews(rv, lineBox(mod, node.has("h"), node.text("style"), env))
+            rv.setInt(R.id.clock, "setGravity", android.view.Gravity.CENTER)
+            AndroidRemoteViews(rv, lineBox(mod, node, clockSample(node.text("format") ?: "HH:mm", env.context.resources.configuration.locales[0]), env))
         }
         "timer" -> {
             val rv = RemoteViews(env.context.packageName, R.layout.timer)
@@ -328,7 +343,8 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
             rv.setChronometerCountDown(R.id.timer, node.text("mode") != "up")
             rv.setTextColor(R.id.timer, color.getColor(env.context).toArgb())
             rv.setTextViewTextSize(R.id.timer, TypedValue.COMPLEX_UNIT_SP, fontSize(node.text("style")) * env.textFactor)
-            AndroidRemoteViews(rv, lineBox(mod, node.has("h"), node.text("style"), env))
+            rv.setInt(R.id.timer, "setGravity", android.view.Gravity.CENTER)
+            AndroidRemoteViews(rv, lineBox(mod, node, "0:00:00", env))
         }
         // 48 dp is the smallest comfortable touch target; Glance's own default is about half that.
         "button" -> Button(
