@@ -54,7 +54,7 @@ fun main() {
             }
             is Outcome.Failed -> println("LIVE GEMINI: \"$ask\" FAILED after ${secs}s: ${out.reason}")
         }
-        Thread.sleep(4_500) // stay well under the free tier's requests-per-minute limit
+        Thread.sleep(13_000) // the free tier allows only a few requests a minute
     }
     println("LIVE GEMINI: model in use: ${gemini.modelName}; candidates left: ${gemini.candidates()}")
     last?.let { spec ->

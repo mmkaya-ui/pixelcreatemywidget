@@ -182,6 +182,18 @@ private val gemini = suite("gemini") {
         eq(GOOD, (g.complete("y") as Reply.Text).text)
         eq(listOf(true, false, false), bodies.map { "thinkingLevel" in it })
     }
+    test("a model over its free quota hands over to the next one") {
+        val asked = ArrayList<String>()
+        val g = Gemini({ r ->
+            if (r.method == "GET") HttpResponse(200, models("gemini-3.5-flash", "gemini-2.5-flash"))
+            else {
+                asked += r.url.substringAfter("models/").substringBefore(":")
+                if ("3.5" in r.url) HttpResponse(429, "{}") else HttpResponse(200, answer(GOOD))
+            }
+        }, "k")
+        eq(GOOD, (g.complete("x") as Reply.Text).text)
+        eq(listOf("gemini-3.5-flash", "gemini-2.5-flash"), asked)
+    }
     test("a stated model skips the list call") {
         val seen = ArrayList<String>()
         Gemini({ r -> seen += r.method; HttpResponse(200, answer("{}")) }, "k", "gemini-9-flash").complete("x")
@@ -192,7 +204,6 @@ private val gemini = suite("gemini") {
         yes("refused the key: API key not valid" in reason(400, "{\"error\":{\"message\":\"API key not valid\"}}").reason)
         yes("quota" in reason(429).reason)
         yes(reason(503).retryable)
-        yes(!reason(429).retryable)
         yes("not found" in reason(404).reason)
         yes("could not reach" in (Gemini({ throw java.io.IOException("offline") }, "k", "m").complete("x") as Reply.Failed).reason)
         yes("could not be read" in reason(200, "<html>").reason)

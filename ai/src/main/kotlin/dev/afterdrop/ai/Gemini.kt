@@ -47,7 +47,7 @@ class Gemini(private val transport: Transport, private val apiKey: String, priva
             // A newer model can need paid credits while an older or lighter one is free: move on and remember.
             // The same goes for a model that is overloaded or too slow right now: a lighter one usually answers.
             val blocked = last is Reply.Failed && (last as Reply.Failed).reason.let {
-                "needs paid credits" in it || "was not found" in it || "took too long" in it || "having trouble" in it
+                "needs paid credits" in it || "was not found" in it || "took too long" in it || "having trouble" in it || "quota" in it
             }
             if (!blocked) return last
             model = queue?.let { q -> q.remove(name); q.firstOrNull() }
@@ -137,7 +137,8 @@ class Gemini(private val transport: Transport, private val apiKey: String, priva
             400, 401, 403 -> Reply.Failed("the Gemini API refused the key" + (message?.let { ": $it" } ?: ""))
             402 -> Reply.Failed("the model \"$model\" needs paid credits on this key" + (message?.let { ": $it" } ?: ""))
             404 -> Reply.Failed("the model \"$model\" was not found; clear the model name to pick one automatically")
-            429 -> Reply.Failed("the free quota is used up for now; try again in a minute")
+            // Each model has its own free quota, so the next model may still answer.
+            429 -> Reply.Failed("the free quota for \"$model\" is used up for now; try again in a minute")
             in 500..599 -> Reply.Failed("the Gemini API is having trouble (${r.status}); try again shortly", retryable = true)
             else -> Reply.Failed("the Gemini API answered ${r.status}" + (message?.let { ": $it" } ?: ""))
         }

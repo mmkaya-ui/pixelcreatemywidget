@@ -32,8 +32,11 @@ Every node has "t" (its type). Any node may also have: id, grow (0-4), w and h (
 Own properties by type:
 $props
 Rules: col, row and box need "kids" (at most 10). list needs "of" (a formula giving a list) and "item" (one node, where the current element is called it); a list cannot contain a list. text needs "text". button needs "label" and "tap". toggle and check need a bool "var"; stepper needs a number "var". chart "kind" is spark or bars; button "kind" is filled, tonal or plain. At most 5 levels deep and 60 nodes.
-Values: gap 0-24; align start|center|end|between; cross start|center|end; style ${Vocabulary.TEXT_STYLES.joinToString("|")}; lines 1-6; shape bar|ring; mode down|up; iconSize 12-64; limit 1-20; "icon" is a lowercase Material icon name.
+Values: gap 0-24; align start|center|end|between; cross start|center|end; style ${Vocabulary.TEXT_STYLES.joinToString("|")}; lines 1-6; shape bar|ring; mode down|up; iconSize 12-64; limit 1-20; "icon" is one of the names under ICONS.
 Colours are roles, never hex: ${Vocabulary.ROLES.joinToString(", ")}.
+
+ICONS
+${dev.afterdrop.spec.IconNames.ALL.joinToString(" ")}
 
 TEXT AND FORMULAS
 "text", "label" and "empty" are templates: plain text with {formula} parts. Write {{ and }} for literal braces.

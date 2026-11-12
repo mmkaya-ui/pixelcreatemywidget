@@ -75,7 +75,7 @@ object Fit {
                 lines * line(n.node.text("style"), scale, fs)
             }
             "clock", "timer" -> line(n.node.text("style"), scale, fs)
-            "icon" -> (n.node.int("iconSize") ?: 24) * 1.1 * TEXT[scale] * fs
+            "icon" -> (n.node.int("iconSize") ?: 24) * TEXT[scale]
             "progress" -> if (n.node.text("shape") == "ring") (if (grows) 32.0 else 48.0) else 6.0
             "chart" -> if (grows) 24.0 else 40.0
             "button" -> BUTTON
@@ -111,7 +111,7 @@ object Fit {
         fun chars(text: String?, size: Double) = (text?.length ?: 0) * size * 0.55 * fs
         val inner = when (n.type) {
             "text", "clock", "timer" -> Math.min(chars(n.text ?: n.node.text("format") ?: "00:00", sp(n.node.text("style"))), 28.0)
-            "icon" -> (n.node.int("iconSize") ?: 24) * 1.1 * fs
+            "icon" -> (n.node.int("iconSize") ?: 24).toDouble()
             "progress" -> if (n.node.text("shape") == "ring") (if (grows) 32.0 else 48.0) else 24.0
             "chart" -> 40.0
             // A label can shorten, so a control never asks for its full label width.

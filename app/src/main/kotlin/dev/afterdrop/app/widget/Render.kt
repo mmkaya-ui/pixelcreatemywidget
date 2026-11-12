@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.Button
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
@@ -66,6 +67,7 @@ import dev.afterdrop.engine.Tap
 import dev.afterdrop.formula.Value
 import dev.afterdrop.formula.display
 import dev.afterdrop.formula.truthy
+import dev.afterdrop.spec.IconNames
 import dev.afterdrop.spec.JString
 
 /** Per-render facts the node renderer needs. */
@@ -148,14 +150,6 @@ private fun fontSize(style: String?) = when (style) {
     "caption" -> 11
     else -> 14
 }
-
-private val ICONS = mapOf(
-    "air" to "💨", "rainy" to "🌧", "event" to "📅", "refresh" to "🔄",
-    "timer" to "⏱", "alarm" to "⏰", "music_note" to "🎵", "monitor_weight" to "⚖",
-    "sunny" to "☀", "cloud" to "☁", "battery_full" to "🔋", "check" to "✔",
-    "star" to "⭐", "favorite" to "❤", "home" to "🏠", "water_drop" to "💧",
-    "directions_bike" to "🚴", "directions_walk" to "🚶", "note" to "📝",
-)
 
 private val FILLS_COLUMN = setOf("row", "list", "divider", "chart")
 
@@ -267,10 +261,15 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
             }
         }
         "text" -> Text(n.text ?: "", modifier = mod, style = textStyle, maxLines = node.int("lines") ?: Fit.DEFAULT_LINES)
-        "icon" -> Text(
-            ICONS[node.text("icon")] ?: "•", modifier = mod,
-            style = TextStyle(color = color, fontSize = ((node.int("iconSize") ?: 24) * 0.8f * env.textFactor).sp), maxLines = 1,
-        )
+        "icon" -> {
+            val side = ((node.int("iconSize") ?: 24) * env.textFactor).dp
+            val res = ICON_RES[IconNames.resolve(node.text("icon"))] ?: R.drawable.ic_w_circle
+            Image(
+                provider = ImageProvider(res), contentDescription = null,
+                modifier = if (node.has("w") || node.has("h")) mod else mod.size(side),
+                colorFilter = ColorFilter.tint(color),
+            )
+        }
         "image" -> Spacer(mod) // images arrive with the sources that supply them
         "progress" -> {
             val fraction = (n.fraction ?: 0.0).toFloat()

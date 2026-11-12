@@ -73,6 +73,13 @@ class LiveDataTest {
     }
 
     @Test
+    fun everyNamedIconHasADrawable() {
+        val names = dev.afterdrop.spec.IconNames
+        for (n in names.ALL) assertTrue("no drawable for $n", dev.afterdrop.app.widget.iconRes(n) != null)
+        for ((alias, target) in names.ALIASES) assertTrue("alias $alias points at a missing icon $target", target in names.ALL)
+    }
+
+    @Test
     fun cachedDataSurvivesWithoutTheNetwork() {
         val s = spec("rates")
         val key = NetworkSources.cacheKey(s.sources.getValue("fx"), Store(context).home)
