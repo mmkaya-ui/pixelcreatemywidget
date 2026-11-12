@@ -106,10 +106,16 @@ class MainActivity : ComponentActivity() {
         return mine + bundled.sortedBy { it.missing.size }
     }
 
-    private fun choose(e: Entry, say: (String) -> Unit) {
+    /** @param stack add the spec as another page of the widget being configured instead of replacing it. */
+    private fun choose(e: Entry, stack: Boolean = false, say: (String) -> Unit) {
         val store = Store(this)
         if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            store.bind(bindId, e.json)
+            if (stack) {
+                if (!store.addPage(bindId, e.json)) {
+                    say("A stack holds at most ${Store.MAX_PAGES} widgets. Remove one first.")
+                    return
+                }
+            } else store.bind(bindId, e.json)
             lifecycleScope.launch {
                 runCatching {
                     AfterdropWidget.refresh(this@MainActivity, GlanceAppWidgetManager(this@MainActivity).getGlanceIdBy(bindId))
@@ -143,6 +149,7 @@ class MainActivity : ComponentActivity() {
         var place by remember { mutableStateOf(Store(this@MainActivity).home?.name) }
         var cityReport by remember { mutableStateOf("") }
         var hosts by remember { mutableStateOf(Store(this@MainActivity).approvedHosts()) }
+        var stackNames by remember { mutableStateOf(Store(this@MainActivity).pages(bindId).map { Store(this@MainActivity).nameOf(it) }) }
         var calendarOk by remember { mutableStateOf(Sources.canReadCalendar(this@MainActivity)) }
         onCalendarAnswer = { calendarOk = it }
         Scaffold(Modifier.fillMaxSize().imePadding()) { inner ->
@@ -233,6 +240,26 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+                if (stackNames.isNotEmpty()) item {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("This widget shows", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (stackNames.size > 1) "It is a stack: tap the dots under it on the home screen to flip to the next one."
+                            else "\"Use this\" replaces it. \"Add to stack\" keeps it and adds another you can flip to by tapping the dots.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        stackNames.forEachIndexed { i, name ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("${i + 1}. $name", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                if (stackNames.size > 1) TextButton(onClick = {
+                                    Store(this@MainActivity).removePage(bindId, i)
+                                    stackNames = Store(this@MainActivity).pages(bindId).map { Store(this@MainActivity).nameOf(it) }
+                                    lifecycleScope.launch { runCatching { AfterdropWidget.refreshAll(this@MainActivity) } }
+                                }) { Text("Remove") }
+                            }
+                        }
+                    }
+                }
                 items(list) { e ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -264,6 +291,9 @@ class MainActivity : ComponentActivity() {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Button(onClick = { choose(e) { report = listOf(it) } }) {
                                     Text(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) "Use this" else "Add to home screen")
+                                }
+                                if (stackNames.isNotEmpty()) {
+                                    TextButton(onClick = { choose(e, stack = true) { askReport = listOf(it) } }) { Text("Add to stack") }
                                 }
                                 if (e.mine) {
                                     TextButton(enabled = !busy, onClick = {

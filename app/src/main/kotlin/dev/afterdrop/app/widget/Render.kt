@@ -90,6 +90,9 @@ class Env(
 /** Content never sits closer than this to the widget edge, so rounded corners cannot clip it. */
 private const val MIN_EDGE_DP = 8
 
+/** Height of the dots strip under a stacked widget. Tapping anywhere on it shows the next page. */
+private const val PAGER_DP = 24
+
 @Composable
 fun WidgetContent(appWidgetId: Int) {
     val context = LocalContext.current
@@ -109,9 +112,13 @@ fun WidgetContent(appWidgetId: Int) {
         }
         return
     }
-    val input = AfterdropWidget.input(context, appWidgetId, spec, SizeClass.of(size.width.value.toInt(), size.height.value.toInt()))
+    // A stack gives up a strip at the bottom for its dots; the page is laid out in what is left.
+    val store = Store(context)
+    val pageCount = store.pages(appWidgetId).size
+    val height = size.height.value.toInt() - if (pageCount > 1) PAGER_DP else 0
+    val input = AfterdropWidget.input(context, appWidgetId, spec, SizeClass.of(size.width.value.toInt(), height))
     val fontScale = context.resources.configuration.fontScale
-    val fitted = Fit.fit(Engine.resolve(input), size.width.value.toInt(), size.height.value.toInt(), fontScale.toDouble())
+    val fitted = Fit.fit(Engine.resolve(input), size.width.value.toInt(), height, fontScale.toDouble())
     val root = fitted.root
     val custom = HashMap<String, Color>()
     if ((spec.theme["palette"] as? JString)?.value == "custom") {
@@ -120,7 +127,23 @@ fun WidgetContent(appWidgetId: Int) {
         }
     }
     val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f))
-    Box(frame) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
+    if (pageCount > 1) {
+        Column(frame) {
+            Box(GlanceModifier.defaultWeight().fillMaxWidth()) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
+            // The whole strip is the tap target, so it is easy to hit even though the dots are small.
+            Box(
+                GlanceModifier.fillMaxWidth().height(PAGER_DP.dp).clickable(run("pager", "flip")),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    AfterdropWidget.dots(pageCount, store.page(appWidgetId)),
+                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 10.sp), maxLines = 1,
+                )
+            }
+        }
+    } else {
+        Box(frame) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
+    }
 }
 
 @Composable

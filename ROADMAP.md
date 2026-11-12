@@ -34,7 +34,7 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 
 ## Step 3: the extras asked for
 
-- [ ] Stack: one widget holding several, flipped by a tap
+- [x] Stack: one widget holding up to six, flipped by a tap
 - [ ] Alarm, now-playing and health sources (each behind its own permission)
 - [ ] Air quality source
 - [ ] On-device model (Gemma or Gemini Nano) once measured on the phone

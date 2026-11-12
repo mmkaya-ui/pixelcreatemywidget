@@ -72,6 +72,13 @@ class AfterdropWidget : GlanceAppWidget() {
             for (id in GlanceAppWidgetManager(context).getGlanceIds(AfterdropWidget::class.java)) refresh(context, id)
         }
 
+        /** The row of dots under a stack: a filled one for the page that is showing. */
+        fun dots(count: Int, showing: Int): String = (0 until count).joinToString(" ") { if (it == showing) "\u25CF" else "\u25CB" }
+
+        /** Every page of a widget, for fetching data the hidden pages will need when flipped to. */
+        fun readAllSpecs(context: Context, appWidgetId: Int): List<WidgetSpec> =
+            Store(context).pages(appWidgetId).mapNotNull { (SpecReader.read(it) as? SpecResult.Ok)?.spec }
+
         fun readSpec(context: Context, appWidgetId: Int): WidgetSpec? {
             val json = Store(context).spec(appWidgetId) ?: return null
             return (SpecReader.read(json) as? SpecResult.Ok)?.spec
@@ -133,8 +140,9 @@ class WidgetCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val op = parameters[AfterdropWidget.OP] ?: return
         val key = parameters[AfterdropWidget.KEY]
+        if (op == "flip") Store(context).flip(GlanceAppWidgetManager(context).getAppWidgetId(glanceId))
         if (op == "refresh") RefreshWorker.now(context, force = true)
-        if (op != "refresh" && key != null) {
+        if (op != "refresh" && op != "flip" && key != null) {
             val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
             val spec = AfterdropWidget.readSpec(context, appWidgetId) ?: return
             // Node keys do not depend on size, so the largest class finds every node.
@@ -163,7 +171,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val context = applicationContext
         val manager = GlanceAppWidgetManager(context)
         val specs = manager.getGlanceIds(AfterdropWidget::class.java)
-            .mapNotNull { AfterdropWidget.readSpec(context, manager.getAppWidgetId(it)) }
+            .flatMap { AfterdropWidget.readAllSpecs(context, manager.getAppWidgetId(it)) }
         runCatching { Sources.refresh(context, specs, HttpsFetcher, inputData.getBoolean("force", false)) }
         AfterdropWidget.refreshAll(context)
         return Result.success()

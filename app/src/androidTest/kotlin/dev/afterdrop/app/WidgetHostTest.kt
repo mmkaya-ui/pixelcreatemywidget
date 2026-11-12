@@ -215,6 +215,59 @@ class WidgetHostTest {
     }
 
     @Test
+    fun stackFlipsOnTapAndEachPageKeepsItsOwnValues() {
+        val p = place(asset("water-today"), 180, 180)
+        waitFor(p, "the single page, with no dots") { "0 of 8 glasses" in it && it.none { t -> "\u25CF" in t } }
+        click(p, "+")
+        waitFor(p, "one glass") { "1 of 8 glasses" in it }
+        val store = Store(context)
+        assertTrue(store.addPage(p.id, asset("battery")))
+        assertTrue(store.addPage(p.id, asset("focus-toggle")))
+        val id = GlanceAppWidgetManager(context).getGlanceIdBy(p.id)
+        runBlocking { AfterdropWidget.refresh(context, id) }
+        // Adding a page shows it: the third page, with its dot filled.
+        waitFor(p, "the newest page and three dots") { "\u25CB \u25CB \u25CF" in it && it.any { t -> t == "Available" || t == "Focus mode" } }
+        click(p, "\u25CB \u25CB \u25CF")
+        waitFor(p, "the first page again, count kept") { "\u25CF \u25CB \u25CB" in it && "1 of 8 glasses" in it }
+        click(p, "\u25CF \u25CB \u25CB")
+        waitFor(p, "the battery page") { "\u25CB \u25CF \u25CB" in it && it.any { t -> Regex("\\d{1,3}%").matches(t) } }
+        // Nothing may fall outside the widget, dots included.
+        val loc = IntArray(2)
+        inst.runOnMainSync { p.view.getLocationOnScreen(loc) }
+        val bounds = Rect(loc[0], loc[1], loc[0] + px(180), loc[1] + px(180))
+        for (i in dump(p.view)) assertTrue("${i.kind} \"${i.text}\" is outside the stacked widget", i.rect.width() <= 0 || bounds.contains(i.rect))
+        // Removing the page that is showing falls back to a valid page, and one page means no dots.
+        assertTrue(store.removePage(p.id, 1))
+        assertTrue(store.removePage(p.id, 1))
+        assertTrue("the last page must not be removable", !store.removePage(p.id, 0))
+        runBlocking { AfterdropWidget.refresh(context, id) }
+        waitFor(p, "the single page again, count still kept") { "1 of 8 glasses" in it && it.none { t -> "\u25CF" in t } }
+        remove(p)
+    }
+
+    @Test
+    fun aStackOfSixIsTheLimitAndFitsASmallWidget() {
+        val p = place(asset("battery"), 150, 70)
+        val store = Store(context)
+        for (name in listOf("clock-date", "holiday-countdown", "water-today", "tea-timer", "focus-toggle")) assertTrue(store.addPage(p.id, asset(name)))
+        assertTrue("a seventh page was accepted", !store.addPage(p.id, asset("rates")))
+        val id = GlanceAppWidgetManager(context).getGlanceIdBy(p.id)
+        val loc = IntArray(2)
+        repeat(6) { n ->
+            runBlocking { AfterdropWidget.refresh(context, id) }
+            val dots = AfterdropWidget.dots(6, store.page(p.id))
+            waitFor(p, "page ${store.page(p.id)} of the small stack") { dots in it && it.size >= 2 }
+            inst.runOnMainSync { p.view.getLocationOnScreen(loc) }
+            val bounds = Rect(loc[0], loc[1], loc[0] + px(150), loc[1] + px(70))
+            for (i in dump(p.view)) {
+                assertTrue("page $n: ${i.kind} \"${i.text}\" is outside or clipped away", i.kind == "Image" || (i.rect.width() > 0 && i.rect.height() > 0 && bounds.contains(i.rect)))
+            }
+            store.flip(p.id)
+        }
+        remove(p)
+    }
+
+    @Test
     fun typingAValueIntoAWidget() {
         val p = place(asset("weight-log"), 180, 80)
         waitFor(p, "the empty state") { "Tap to log" in it }

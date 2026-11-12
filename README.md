@@ -4,7 +4,7 @@ Describe a widget in plain words and get a real home-screen widget on a Pixel 7,
 independent alternative to Google's "Create My Widget", which those phones do not get.
 Not affiliated with Google.
 
-**Status: test build 0.6.0, not a stable release.** It is tested on Android 16 and 17 emulators,
+**Status: test build 0.7.0, not a stable release.** It is tested on Android 16 and 17 emulators,
 including the launcher's own "Add to home screen" flow. It has not yet been run on a real phone.
 See [ROADMAP.md](ROADMAP.md) for what is left.
 
@@ -21,6 +21,7 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
   news feeds (RSS and Atom) and any https address that returns JSON.
 - **Type a value:** a widget can ask for a number or text, such as today's weight, in a small dialog.
 - **Edits reach the home screen:** changing a widget updates the copies already placed.
+- **Stacks:** one widget can hold up to six, flipped by tapping the dots under it. Each keeps its own values.
 - **Any size:** from 1 x 5 to 5 x 1 cells. What does not fit is dropped whole, controls last.
 
 ## What it does not do yet
