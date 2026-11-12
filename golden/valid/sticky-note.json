@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "name": "Sticky note",
+  "size": { "cols": 2, "rows": 2 },
+  "theme": { "palette": "custom", "colors": { "surface": "#FFF4B8", "text": "#3A3000" }, "shape": "soft" },
+  "sources": { "nt": { "use": "notes", "with": { "note": "pinned" } } },
+  "root": {
+    "t": "col", "pad": 14, "bg": "surface", "tap": { "do": "edit" },
+    "kids": [
+      { "t": "text", "text": "{coalesce(nt.text, 'Tap to write')}", "style": "body", "lines": 6 }
+    ]
+  }
+}

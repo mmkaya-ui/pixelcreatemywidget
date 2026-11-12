@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "name": "Battery",
+  "size": { "cols": 2, "rows": 1 },
+  "sources": { "bat": { "use": "battery" } },
+  "calc": { "low": "bat.level < 20 && !bat.charging" },
+  "root": {
+    "t": "row", "pad": 12, "gap": 10, "cross": "center",
+    "kids": [
+      { "t": "progress", "shape": "ring", "value": "bat.level / 100", "color": "primary", "w": 40, "h": 40 },
+      { "t": "col", "grow": 1, "kids": [
+        { "t": "text", "text": "{num(bat.level, 0)}%", "style": "headline", "bold": true },
+        { "t": "text", "text": "Charging", "style": "caption", "color": "success", "if": "bat.charging" },
+        { "t": "text", "text": "Plug in soon", "style": "caption", "color": "error", "if": "low" }
+      ] }
+    ]
+  }
+}

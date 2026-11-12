@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "name": "Euro to lira",
+  "size": { "cols": 3, "rows": 2 },
+  "sources": { "fx": { "use": "rates", "with": { "base": "EUR", "quote": "TRY", "days": 30 }, "every": "3h" } },
+  "calc": { "change": "fx.rate - first(fx.history)" },
+  "root": {
+    "t": "col", "pad": 12, "gap": 4,
+    "kids": [
+      { "t": "text", "text": "1 EUR", "style": "label", "color": "muted" },
+      { "t": "row", "gap": 8, "cross": "end", "kids": [
+        { "t": "text", "text": "{num(fx.rate, 2)} TRY", "style": "headline", "bold": true },
+        { "t": "text", "text": "{change >= 0 ? '+' : ''}{num(change, 2)}", "style": "caption",
+          "color": "muted" }
+      ] },
+      { "t": "chart", "kind": "spark", "values": "fx.history", "color": "primary", "grow": 1, "from": "s" }
+    ]
+  }
+}

@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "widget-spec/v1",
+  "title": "WidgetSpec v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "name", "size", "root"],
+  "properties": {
+    "v": { "const": 1 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "about": { "type": "string", "maxLength": 200 },
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cols", "rows"],
+      "properties": {
+        "cols": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "rows": { "type": "integer", "minimum": 1, "maximum": 5 }
+      }
+    },
+    "theme": { "$ref": "#/$defs/theme" },
+    "sources": {
+      "type": "object",
+      "maxProperties": 6,
+      "propertyNames": { "$ref": "#/$defs/ident" },
+      "additionalProperties": { "$ref": "#/$defs/source" }
+    },
+    "vars": {
+      "type": "object",
+      "maxProperties": 8,
+      "propertyNames": { "$ref": "#/$defs/ident" },
+      "additionalProperties": { "$ref": "#/$defs/var" }
+    },
+    "calc": {
+      "type": "object",
+      "maxProperties": 12,
+      "propertyNames": { "$ref": "#/$defs/ident" },
+      "additionalProperties": { "$ref": "#/$defs/formula" }
+    },
+    "root": { "$ref": "#/$defs/node" }
+  },
+  "$defs": {
+    "ident": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]{0,23}$" },
+    "formula": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "template": { "type": "string", "maxLength": 160 },
+    "role": {
+      "enum": ["bg", "surface", "surfaceVariant", "primary", "onPrimary", "secondary", "tertiary",
+               "text", "muted", "outline", "error", "success", "warning"]
+    },
+    "hex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "dim": {
+      "oneOf": [ { "enum": ["wrap", "fill"] }, { "type": "integer", "minimum": 8, "maximum": 400 } ]
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "palette": { "enum": ["dynamic", "light", "dark", "custom"] },
+        "colors": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/role" },
+          "additionalProperties": { "$ref": "#/$defs/hex" }
+        },
+        "shape": { "enum": ["system", "soft", "sharp"] },
+        "density": { "enum": ["compact", "regular"] }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["use"],
+      "properties": {
+        "use": {
+          "enum": ["weather", "air", "calendar", "battery", "alarm", "health", "rates",
+                   "feed", "http", "ai", "notes", "media", "device"]
+        },
+        "with": { "type": "object" },
+        "every": { "enum": ["15m", "30m", "1h", "3h", "6h", "12h", "1d", "1w"] }
+      }
+    },
+    "var": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "init"],
+      "properties": {
+        "type": { "enum": ["int", "num", "bool", "text"] },
+        "init": { "type": ["number", "boolean", "string"] },
+        "reset": { "enum": ["never", "daily", "weekly"] }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["do"],
+      "properties": {
+        "do": { "enum": ["refresh", "edit", "open_url", "open_app", "open_source", "set", "ask"] },
+        "url": { "type": "string", "pattern": "^https://", "maxLength": 300 },
+        "pkg": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$" },
+        "source": { "$ref": "#/$defs/ident" },
+        "var": { "$ref": "#/$defs/ident" },
+        "to": { "$ref": "#/$defs/formula" },
+        "title": { "type": "string", "maxLength": 40 },
+        "kind": { "enum": ["number", "text"] }
+      },
+      "allOf": [
+        { "if": { "properties": { "do": { "const": "open_url" } } }, "then": { "required": ["url"] } },
+        { "if": { "properties": { "do": { "const": "open_app" } } }, "then": { "required": ["pkg"] } },
+        { "if": { "properties": { "do": { "const": "open_source" } } }, "then": { "required": ["source"] } },
+        { "if": { "properties": { "do": { "const": "set" } } }, "then": { "required": ["var", "to"] } },
+        { "if": { "properties": { "do": { "const": "ask" } } }, "then": { "required": ["var"] } }
+      ]
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["t"],
+      "properties": {
+        "t": {
+          "enum": ["col", "row", "box", "list", "text", "icon", "image", "progress", "chart",
+                   "clock", "timer", "button", "toggle", "stepper", "check", "spacer", "divider"]
+        },
+        "id": { "$ref": "#/$defs/ident" },
+        "kids": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/node" } },
+        "item": { "$ref": "#/$defs/node" },
+        "gap": { "type": "integer", "minimum": 0, "maximum": 24 },
+        "pad": { "type": "integer", "minimum": 0, "maximum": 24 },
+        "align": { "enum": ["start", "center", "end", "between"] },
+        "cross": { "enum": ["start", "center", "end"] },
+        "grow": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "w": { "$ref": "#/$defs/dim" },
+        "h": { "$ref": "#/$defs/dim" },
+        "bg": { "oneOf": [ { "$ref": "#/$defs/role" }, { "const": "none" } ] },
+        "radius": { "type": "integer", "minimum": 0, "maximum": 28 },
+        "from": { "enum": ["xs", "s", "m", "l"] },
+        "if": { "$ref": "#/$defs/formula" },
+        "tap": { "$ref": "#/$defs/action" },
+
+        "text": { "$ref": "#/$defs/template" },
+        "style": { "enum": ["display", "headline", "title", "body", "label", "caption"] },
+        "color": { "$ref": "#/$defs/role" },
+        "lines": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "bold": { "type": "boolean" },
+
+        "icon": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
+        "iconSize": { "type": "integer", "minimum": 12, "maximum": 64 },
+
+        "src": { "type": "string", "pattern": "^(asset|source):[A-Za-z0-9_./-]{1,80}$" },
+        "fit": { "enum": ["cover", "contain"] },
+
+        "value": { "$ref": "#/$defs/formula" },
+        "shape": { "enum": ["bar", "ring"] },
+
+        "kind": { "enum": ["spark", "bars", "filled", "tonal", "plain"] },
+        "values": { "$ref": "#/$defs/formula" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+
+        "format": { "type": "string", "maxLength": 32 },
+        "zone": { "type": "string", "maxLength": 40 },
+        "to": { "$ref": "#/$defs/formula" },
+        "mode": { "enum": ["down", "up"] },
+
+        "label": { "$ref": "#/$defs/template" },
+        "var": { "$ref": "#/$defs/ident" },
+        "step": { "type": "number", "exclusiveMinimum": 0 },
+
+        "of": { "$ref": "#/$defs/formula" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "empty": { "$ref": "#/$defs/template" }
+      },
+      "allOf": [
+        { "if": { "properties": { "t": { "enum": ["col", "row", "box"] } } }, "then": { "required": ["kids"] } },
+        { "if": { "properties": { "t": { "const": "list" } } }, "then": { "required": ["of", "item"] } },
+        { "if": { "properties": { "t": { "const": "text" } } }, "then": { "required": ["text"] } },
+        { "if": { "properties": { "t": { "const": "icon" } } }, "then": { "required": ["icon"] } },
+        { "if": { "properties": { "t": { "const": "image" } } }, "then": { "required": ["src"] } },
+        { "if": { "properties": { "t": { "const": "progress" } } }, "then": { "required": ["value"] } },
+        { "if": { "properties": { "t": { "const": "chart" } } }, "then": { "required": ["kind", "values"] } },
+        { "if": { "properties": { "t": { "const": "clock" } } }, "then": { "required": ["format"] } },
+        { "if": { "properties": { "t": { "const": "timer" } } }, "then": { "required": ["to"] } },
+        { "if": { "properties": { "t": { "const": "button" } } }, "then": { "required": ["label", "tap"] } },
+        { "if": { "properties": { "t": { "enum": ["toggle", "stepper", "check"] } } }, "then": { "required": ["var"] } }
+      ]
+    }
+  }
+}

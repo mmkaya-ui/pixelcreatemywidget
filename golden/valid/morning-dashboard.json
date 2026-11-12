@@ -1,0 +1,23 @@
+{
+  "v": 1,
+  "name": "Morning",
+  "about": "Next alarm, storage and a link",
+  "size": { "cols": 4, "rows": 2 },
+  "sources": { "al": { "use": "alarm" }, "dev": { "use": "device" } },
+  "root": {
+    "t": "col", "pad": 12, "gap": 8,
+    "kids": [
+      { "t": "row", "gap": 8, "cross": "center", "kids": [
+        { "t": "icon", "icon": "alarm", "iconSize": 20, "color": "primary" },
+        { "t": "text", "text": "{al.next ? fmt(al.next, 'EEE HH:mm') : 'No alarm set'}", "style": "title", "grow": 1 }
+      ] },
+      { "t": "divider", "color": "outline" },
+      { "t": "row", "gap": 8, "cross": "center", "kids": [
+        { "t": "text", "text": "{num(dev.storageFreeGb, 0)} GB free", "style": "body", "grow": 1 },
+        { "t": "button", "label": "Timetable", "kind": "plain",
+          "tap": { "do": "open_url", "url": "https://example.org/timetable" } },
+        { "t": "button", "label": "Maps", "kind": "plain", "tap": { "do": "open_app", "pkg": "com.example.maps" } }
+      ] }
+    ]
+  }
+}

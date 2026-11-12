@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "name": "Weight",
+  "size": { "cols": 2, "rows": 1 },
+  "vars": { "kg": { "type": "num", "init": 0 } },
+  "root": {
+    "t": "row", "pad": 12, "gap": 8, "cross": "center",
+    "tap": { "do": "ask", "var": "kg", "title": "Weight in kg", "kind": "number" },
+    "kids": [
+      { "t": "icon", "icon": "monitor_weight", "iconSize": 24, "color": "primary" },
+      { "t": "text", "text": "{kg == 0 ? 'Tap to log' : num(kg, 1) + ' kg'}", "style": "title" }
+    ]
+  }
+}

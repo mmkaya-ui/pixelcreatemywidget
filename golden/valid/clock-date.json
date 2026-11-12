@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "name": "Clock and date",
+  "size": { "cols": 2, "rows": 1 },
+  "root": {
+    "t": "col", "pad": 12, "gap": 2, "cross": "center", "align": "center",
+    "kids": [
+      { "t": "clock", "format": "HH:mm", "style": "display", "bold": true },
+      { "t": "clock", "format": "EEEE d MMMM", "style": "caption", "color": "muted" }
+    ]
+  }
+}

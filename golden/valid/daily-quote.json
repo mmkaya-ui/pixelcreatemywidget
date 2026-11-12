@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "name": "Daily line",
+  "size": { "cols": 4, "rows": 2 },
+  "sources": { "q": { "use": "ai", "with": { "prompt": "One short stoic line for {fmt(today(), 'EEEE')}. No quotation marks." }, "every": "1d" } },
+  "root": {
+    "t": "col", "pad": 16, "gap": 8, "align": "center",
+    "kids": [
+      { "t": "text", "text": "{coalesce(q.text, 'Thinking it over')}", "style": "title", "lines": 4 },
+      { "t": "button", "label": "Another", "kind": "tonal", "tap": { "do": "refresh" }, "from": "m" }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "name": "Water today",
+  "size": { "cols": 2, "rows": 2 },
+  "vars": { "glasses": { "type": "int", "init": 0, "reset": "daily" } },
+  "calc": { "goal": "8", "done": "clamp(glasses / goal, 0, 1)" },
+  "root": {
+    "t": "col", "pad": 12, "gap": 8, "cross": "center",
+    "kids": [
+      { "t": "progress", "shape": "ring", "value": "done", "color": "primary", "grow": 1 },
+      { "t": "text", "text": "{glasses} of {goal} glasses", "style": "title" },
+      { "t": "stepper", "var": "glasses", "step": 1, "min": 0, "max": 20, "label": "Glasses" }
+    ]
+  }
+}

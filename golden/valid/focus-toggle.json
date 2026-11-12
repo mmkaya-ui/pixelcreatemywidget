@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "name": "Focus",
+  "size": { "cols": 2, "rows": 1 },
+  "vars": { "focus": { "type": "bool", "init": false, "reset": "daily" } },
+  "root": {
+    "t": "row", "pad": 12, "gap": 8, "cross": "center", "align": "between",
+    "bg": "surfaceVariant", "radius": 20,
+    "kids": [
+      { "t": "text", "text": "{focus ? 'Heads down' : 'Available'}", "style": "title", "grow": 1 },
+      { "t": "toggle", "var": "focus", "label": "Focus mode" }
+    ]
+  }
+}

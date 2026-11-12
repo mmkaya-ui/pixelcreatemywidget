@@ -1,0 +1,23 @@
+{
+  "v": 1,
+  "name": "Headlines",
+  "size": { "cols": 4, "rows": 3 },
+  "sources": { "news": { "use": "feed", "with": { "url": "https://example.org/feed.xml" }, "every": "1h" } },
+  "root": {
+    "t": "col", "pad": 12, "gap": 8,
+    "kids": [
+      { "t": "row", "align": "between", "cross": "center", "kids": [
+        { "t": "text", "text": "{coalesce(news.title, 'News')}", "style": "label", "color": "muted", "lines": 1 },
+        { "t": "icon", "icon": "refresh", "iconSize": 18, "color": "muted", "tap": { "do": "refresh" } }
+      ] },
+      { "t": "list", "of": "news.items", "limit": 5, "gap": 6, "grow": 1, "empty": "No stories yet",
+        "item": {
+          "t": "col", "tap": { "do": "open_source", "source": "news" },
+          "kids": [
+            { "t": "text", "text": "{it.title}", "style": "body", "lines": 2 },
+            { "t": "text", "text": "{fmt(it.published, 'HH:mm')}", "style": "caption", "color": "muted" }
+          ]
+        } }
+    ]
+  }
+}

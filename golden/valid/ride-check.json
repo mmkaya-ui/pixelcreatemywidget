@@ -1,0 +1,31 @@
+{
+  "v": 1,
+  "name": "Ride check",
+  "about": "Wind and rain only, for cycling",
+  "size": { "cols": 2, "rows": 2 },
+  "theme": { "palette": "dynamic", "shape": "system", "density": "regular" },
+  "sources": {
+    "wx": { "use": "weather", "with": { "place": "current", "units": "metric" }, "every": "30m" }
+  },
+  "calc": {
+    "rideable": "wx.now.wind < 25 && wx.next3h.rainChance < 40"
+  },
+  "root": {
+    "t": "col", "pad": 12, "gap": 6,
+    "tap": { "do": "open_source", "source": "wx" },
+    "kids": [
+      { "t": "row", "gap": 6, "cross": "center", "kids": [
+        { "t": "icon", "icon": "air", "iconSize": 20, "color": "primary" },
+        { "t": "text", "text": "{num(wx.now.wind, 0)} km/h", "style": "headline", "bold": true },
+        { "t": "text", "text": "gusts {num(wx.now.gust, 0)}", "style": "caption", "color": "muted", "from": "m" }
+      ] },
+      { "t": "row", "gap": 6, "cross": "center", "kids": [
+        { "t": "icon", "icon": "rainy", "iconSize": 20, "color": "primary" },
+        { "t": "text", "text": "{num(wx.next3h.rainChance, 0)}% rain by {fmt(wx.next3h.until, 'HH:mm')}", "style": "title" }
+      ] },
+      { "t": "chart", "kind": "bars", "values": "pluck(take(wx.hourly, 8), 'rainChance')",
+        "min": 0, "max": 100, "color": "primary", "grow": 1, "from": "s" },
+      { "t": "text", "text": "{rideable ? 'Good to ride' : 'Maybe not today'}", "style": "label", "color": "muted" }
+    ]
+  }
+}

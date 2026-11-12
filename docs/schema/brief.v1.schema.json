@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "widget-brief/v1",
+  "title": "WidgetBrief v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "intent", "title", "layout", "size"],
+  "properties": {
+    "v": { "const": 1 },
+    "intent": {
+      "enum": ["weather", "agenda", "countdown", "tracker", "todo", "clock", "battery",
+               "quote", "rates", "feed", "calculator", "dashboard", "custom"]
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "layout": { "enum": ["stat", "list", "ring", "spark", "grid", "hero"] },
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cols", "rows"],
+      "properties": {
+        "cols": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "rows": { "type": "integer", "minimum": 1, "maximum": 5 }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["use"],
+        "properties": {
+          "use": {
+            "enum": ["weather", "air", "calendar", "battery", "alarm", "health", "rates",
+                     "feed", "http", "ai", "notes", "media", "device"]
+          },
+          "with": { "type": "object" }
+        }
+      }
+    },
+    "show": { "type": "array", "maxItems": 6, "items": { "type": "string", "maxLength": 32 } },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "palette": { "enum": ["dynamic", "light", "dark"] },
+        "density": { "enum": ["compact", "regular"] },
+        "accent": { "enum": ["primary", "secondary", "tertiary"] }
+      }
+    },
+    "extras": {
+      "type": "object",
+      "maxProperties": 6,
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    }
+  }
+}

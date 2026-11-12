@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "name": "Now playing",
+  "size": { "cols": 4, "rows": 1 },
+  "sources": { "np": { "use": "media" } },
+  "root": {
+    "t": "row", "pad": 8, "gap": 10, "cross": "center",
+    "tap": { "do": "open_source", "source": "np" },
+    "kids": [
+      { "t": "image", "src": "source:np.art", "fit": "cover", "w": 48, "h": 48, "radius": 12 },
+      { "t": "col", "grow": 1, "kids": [
+        { "t": "text", "text": "{coalesce(np.title, 'Nothing playing')}", "style": "title", "lines": 1 },
+        { "t": "text", "text": "{np.artist}", "style": "caption", "color": "muted", "lines": 1, "if": "np.artist" }
+      ] },
+      { "t": "icon", "icon": "music_note", "iconSize": 20, "color": "muted", "from": "m" }
+    ]
+  }
+}

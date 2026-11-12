@@ -1,0 +1,25 @@
+Afterdrop
+Copyright (c) 2026 Mert Mercankaya. All rights reserved.
+
+This software and its source code are proprietary. No licence is granted to any
+person to use, copy, modify, merge, publish, distribute, sublicense or sell the
+software or any part of it, in source or compiled form, without the prior written
+permission of the copyright holder.
+
+The source code is made visible for reference only. Viewing it, or forking it
+where a hosting service's own terms allow, does not grant any other right.
+
+Versions of this project published before 12 November 2026 were made available
+under the Apache License, Version 2.0. That licence continues to apply to those
+earlier versions for anyone who obtained them under it. It does not apply to this
+version or to later ones.
+
+Third-party components keep their own licences. The Gradle wrapper in gradle/ and
+the gradlew scripts are licensed under the Apache License, Version 2.0, by their
+authors.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES
+OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+Requests for permission: open an issue on the project's repository.

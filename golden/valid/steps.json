@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "name": "Steps",
+  "size": { "cols": 2, "rows": 2 },
+  "sources": { "hp": { "use": "health", "with": { "metric": "steps" }, "every": "15m" } },
+  "calc": { "goal": "10000", "share": "clamp(hp.today / goal, 0, 1)" },
+  "root": {
+    "t": "box", "pad": 12, "align": "center", "cross": "center",
+    "tap": { "do": "open_source", "source": "hp" },
+    "kids": [
+      { "t": "progress", "shape": "ring", "value": "share", "color": "primary", "w": "fill", "h": "fill" },
+      { "t": "col", "cross": "center", "kids": [
+        { "t": "text", "text": "{num(hp.today, 0)}", "style": "headline", "bold": true },
+        { "t": "text", "text": "{pct(share)} of goal", "style": "caption", "color": "muted", "from": "s" }
+      ] }
+    ]
+  }
+}

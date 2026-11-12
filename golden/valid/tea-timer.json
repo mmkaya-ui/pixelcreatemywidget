@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "name": "Tea timer",
+  "size": { "cols": 2, "rows": 2 },
+  "vars": { "endsAt": { "type": "num", "init": 0 } },
+  "calc": { "running": "endsAt > now()" },
+  "root": {
+    "t": "col", "pad": 12, "gap": 8, "cross": "center", "align": "center",
+    "kids": [
+      { "t": "timer", "to": "endsAt", "mode": "down", "style": "display", "bold": true, "if": "running" },
+      { "t": "text", "text": "Ready when you are", "style": "body", "color": "muted", "if": "!running" },
+      { "t": "button", "label": "Start 3 min", "kind": "filled", "icon": "timer",
+        "tap": { "do": "set", "var": "endsAt", "to": "now() + 180000" } }
+    ]
+  }
+}

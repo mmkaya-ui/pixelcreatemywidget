@@ -1,0 +1,89 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  core:
+    name: Core (kotlinc only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build and test the core without Gradle
+        run: scripts/check.sh
+      - name: Real Gemini API conversation (runs only when the GEMINI_API_KEY secret exists)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          STD="$(dirname "$(readlink -f "$(command -v kotlinc)")")/../lib/kotlin-stdlib.jar"
+          O=build/check
+          java -cp "$O/ai-test.jar:$O/ai.jar:$O/composer.jar:$O/spec.jar:$O/formula.jar:$O/testkit.jar:$STD" dev.afterdrop.ai.LiveGeminiKt
+
+  gradle:
+    name: Gradle check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew check
+
+  apk:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: afterdrop-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  emulator:
+    name: Emulator tests (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [36, "37.0"]  # 37.0 is Android 17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the app and its widget on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          disable-animations: true
+          script: |
+            adb logcat -G 16M
+            adb logcat -c
+            ./gradlew :app:connectedDebugAndroidTest || (adb logcat -d -s AfterdropTest:V TestRunner:E AndroidRuntime:E; adb logcat -d -s AfterdropShot:V | cut -d: -f4- | sed "s/^ /SHOT /"; exit 1)
+            adb logcat -d -s AfterdropTest:V
+            adb logcat -d -s AfterdropShot:V | cut -d: -f4- | sed "s/^ /SHOT /"

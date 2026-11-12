@@ -1,0 +1,26 @@
+{
+  "v": 1,
+  "name": "Next up",
+  "size": { "cols": 4, "rows": 2 },
+  "sources": {
+    "cal": { "use": "calendar", "with": { "daysAhead": 2, "limit": 5 }, "every": "15m" }
+  },
+  "root": {
+    "t": "col", "pad": 12, "gap": 6,
+    "kids": [
+      { "t": "row", "align": "between", "cross": "center", "kids": [
+        { "t": "clock", "format": "EEE d MMM", "style": "label", "color": "muted" },
+        { "t": "icon", "icon": "event", "iconSize": 18, "color": "muted" }
+      ] },
+      { "t": "list", "of": "cal.events", "limit": 4, "grow": 1, "empty": "Nothing scheduled",
+        "item": {
+          "t": "row", "gap": 8, "cross": "center",
+          "tap": { "do": "open_source", "source": "cal" },
+          "kids": [
+            { "t": "text", "text": "{fmt(it.start, 'HH:mm')}", "style": "label", "color": "primary" },
+            { "t": "text", "text": "{it.title}", "style": "body", "lines": 1, "grow": 1 }
+          ]
+        } }
+    ]
+  }
+}

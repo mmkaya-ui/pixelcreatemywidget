@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Afterdrop</string>
+    <string name="widget_label">Afterdrop 2 × 2</string>
+    <string name="widget_label_2x1">Afterdrop 2 × 1</string>
+    <string name="widget_label_4x1">Afterdrop 4 × 1</string>
+    <string name="widget_label_4x2">Afterdrop 4 × 2</string>
+    <string name="widget_label_4x3">Afterdrop 4 × 3</string>
+    <string name="widget_description">A widget you choose or describe in Afterdrop.</string>
+    <string name="choose_widget">Tap to choose a widget</string>
+    <string name="broken_widget">This widget could not be read. Tap to choose another.</string>
+</resources>

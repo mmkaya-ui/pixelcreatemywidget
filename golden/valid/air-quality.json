@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "name": "Air",
+  "size": { "cols": 2, "rows": 2 },
+  "sources": { "air": { "use": "air", "with": { "place": "current" }, "every": "1h" } },
+  "calc": { "share": "clamp(air.aqi / 300, 0, 1)" },
+  "root": {
+    "t": "col", "pad": 12, "gap": 6,
+    "kids": [
+      { "t": "text", "text": "Air quality", "style": "label", "color": "muted" },
+      { "t": "text", "text": "{num(air.aqi, 0)}", "style": "display", "bold": true },
+      { "t": "progress", "shape": "bar", "value": "share", "color": "primary" },
+      { "t": "text", "text": "Consider a mask outdoors", "style": "caption", "color": "warning", "if": "air.aqi > 100" },
+      { "t": "spacer", "grow": 1 }
+    ]
+  }
+}

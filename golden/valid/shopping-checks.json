@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "name": "Shopping",
+  "size": { "cols": 2, "rows": 2 },
+  "vars": {
+    "milk": { "type": "bool", "init": false, "reset": "weekly" },
+    "bread": { "type": "bool", "init": false, "reset": "weekly" },
+    "eggs": { "type": "bool", "init": false, "reset": "weekly" }
+  },
+  "calc": { "got": "(milk ? 1 : 0) + (bread ? 1 : 0) + (eggs ? 1 : 0)" },
+  "root": {
+    "t": "col", "pad": 12, "gap": 4,
+    "kids": [
+      { "t": "text", "text": "{got} of 3", "style": "label", "color": "muted" },
+      { "t": "check", "var": "milk", "label": "Milk" },
+      { "t": "check", "var": "bread", "label": "Bread" },
+      { "t": "check", "var": "eggs", "label": "Eggs" },
+      { "t": "text", "text": "All done", "style": "caption", "color": "success", "if": "got == 3" }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "intent": "weather",
+  "title": "Ride check",
+  "layout": "stat",
+  "size": { "cols": 2, "rows": 2 },
+  "sources": [ { "use": "weather", "with": { "place": "current", "units": "metric" } } ],
+  "show": ["wind", "gust", "rainChance"],
+  "style": { "palette": "dynamic", "density": "regular", "accent": "primary" }
+}
