@@ -4,6 +4,8 @@
     <!-- Used for the data a widget asks for (weather, exchange rates, feeds you add) and, when you press
          "Create with AI", to send your description to the Gemini API with your own key. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Asked for only when you add a calendar widget and press "Allow calendar access". Read on the phone, never sent. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
 
     <queries>
         <intent>
@@ -31,6 +33,14 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".AskActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
 
         <receiver
             android:name=".widget.AfterdropReceiver"

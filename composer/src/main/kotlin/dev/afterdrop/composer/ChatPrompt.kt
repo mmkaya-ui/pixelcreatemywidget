@@ -35,6 +35,11 @@ Rules: col, row and box need "kids" (at most 10). list needs "of" (a formula giv
 Values: gap 0-24; align start|center|end|between; cross start|center|end; style ${Vocabulary.TEXT_STYLES.joinToString("|")}; lines 1-6; shape bar|ring; mode down|up; iconSize 12-64; limit 1-20; "icon" is one of the names under ICONS.
 Colours are roles, never hex: ${Vocabulary.ROLES.joinToString(", ")}.
 
+SOURCES AND THEIR FIELDS
+Read a source by its name, for example {wx.now.temp}. Only these fields exist; any other field is refused.
+${dev.afterdrop.spec.SourceShapes.describe()}
+Times are epoch milliseconds: show one with fmt(t, 'HH:mm'). A list field marked [] needs [index], first(), pluck(list, 'field') or a "list" node.
+
 ICONS
 ${dev.afterdrop.spec.IconNames.ALL.joinToString(" ")}
 

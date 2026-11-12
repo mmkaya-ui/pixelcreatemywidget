@@ -56,6 +56,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import dev.afterdrop.app.AskActivity
 import dev.afterdrop.app.MainActivity
 import dev.afterdrop.app.R
 import dev.afterdrop.app.Store
@@ -168,7 +169,8 @@ private fun tapAction(n: RNode, env: Env): Action? = when (val t = n.tap) {
             else -> MainActivity.bindIntent(env.context, env.appWidgetId)
         }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     )
-    Tap.Edit, is Tap.Ask -> actionStartActivity(MainActivity.bindIntent(env.context, env.appWidgetId))
+    is Tap.Ask -> actionStartActivity(AskActivity.intent(env.context, env.appWidgetId, t.variable, t.title))
+    Tap.Edit -> actionStartActivity(MainActivity.bindIntent(env.context, env.appWidgetId))
     Tap.Refresh -> run(n.key, "refresh")
     Tap.SetVar -> run(n.key, "tap")
 }

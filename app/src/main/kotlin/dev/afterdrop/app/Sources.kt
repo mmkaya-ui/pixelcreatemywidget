@@ -1,6 +1,10 @@
 package dev.afterdrop.app
 
+import android.Manifest
+import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
+import android.provider.CalendarContract
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
@@ -11,6 +15,8 @@ import dev.afterdrop.data.NetworkSources
 import dev.afterdrop.data.toJson
 import dev.afterdrop.engine.toValue
 import dev.afterdrop.formula.Value
+import dev.afterdrop.spec.JNumber
+import dev.afterdrop.spec.Source
 import dev.afterdrop.spec.WidgetSpec
 import java.time.LocalDate
 
@@ -20,7 +26,18 @@ import java.time.LocalDate
  * drawing a widget never waits on the network. Sources not provided yet read as missing.
  */
 object Sources {
-    val AVAILABLE = setOf("battery", "device") + NetworkSources.KINDS
+    val AVAILABLE = setOf("battery", "device", "calendar") + NetworkSources.KINDS
+
+    /** Services the app itself chose. Any other host must be allowed by the person first. */
+    val BUILT_IN_HOSTS = setOf("api.open-meteo.com", "api.frankfurter.dev")
+
+    fun allowed(context: Context, source: Source): Boolean {
+        val host = NetworkSources.host(source) ?: return true
+        return host in BUILT_IN_HOSTS || host in Store(context).approvedHosts()
+    }
+
+    fun canReadCalendar(context: Context) =
+        context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
     fun collect(context: Context, spec: WidgetSpec): Map<String, Value> {
         val out = HashMap<String, Value>()
@@ -31,6 +48,7 @@ object Sources {
                 when (source.use) {
                     "battery" -> battery(context)
                     "device" -> device()
+                    "calendar" -> calendar(context, source)
                     in NetworkSources.KINDS -> store.cached(NetworkSources.cacheKey(source, home))?.first?.toValue()
                     else -> null
                 }
@@ -51,7 +69,7 @@ object Sources {
         val done = HashSet<String>()
         var updated = 0
         for (spec in specs) for (source in spec.sources.values) {
-            if (source.use !in NetworkSources.KINDS) continue
+            if (source.use !in NetworkSources.KINDS || !allowed(context, source)) continue
             val key = NetworkSources.cacheKey(source, home)
             if (!done.add(key)) continue
             val age = store.cached(key)?.let { now - it.second }
@@ -63,6 +81,41 @@ object Sources {
             updated++
         }
         return updated
+    }
+
+    /**
+     * Upcoming events, read on the phone from the system calendar. Nothing here is ever sent anywhere:
+     * the widget format refuses any widget that would put calendar values into a request.
+     */
+    private fun calendar(context: Context, source: Source): Value? {
+        if (!canReadCalendar(context)) return null
+        val days = ((source.with["daysAhead"] as? JNumber)?.value ?: 2.0).coerceIn(1.0, 31.0).toLong()
+        val limit = ((source.with["limit"] as? JNumber)?.value ?: 5.0).coerceIn(1.0, 20.0).toInt()
+        val now = System.currentTimeMillis()
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().let {
+            ContentUris.appendId(it, now)
+            ContentUris.appendId(it, now + days * 86_400_000L)
+            it.build()
+        }
+        val columns = arrayOf(
+            CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN, CalendarContract.Instances.END,
+            CalendarContract.Instances.ALL_DAY, CalendarContract.Instances.EVENT_LOCATION,
+        )
+        val events = ArrayList<Value>()
+        context.contentResolver.query(uri, columns, null, null, CalendarContract.Instances.BEGIN + " ASC")?.use { c ->
+            while (c.moveToNext() && events.size < limit) {
+                events += Value.Obj(
+                    mapOf(
+                        "title" to Value.Str((c.getString(0) ?: "").take(200)),
+                        "start" to Value.Num(c.getLong(1).toDouble()),
+                        "end" to Value.Num(c.getLong(2).toDouble()),
+                        "allDay" to Value.Bool(c.getInt(3) != 0),
+                        "location" to Value.Str((c.getString(4) ?: "").take(200)),
+                    )
+                )
+            }
+        }
+        return Value.Obj(mapOf("events" to Value.ListV(events)))
     }
 
     private fun battery(context: Context): Value? {

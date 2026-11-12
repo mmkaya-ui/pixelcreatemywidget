@@ -229,6 +229,28 @@ private val lint = suite("lint") {
         long["name"] = "\uD83D\uDEB4".repeat(41)
         yes("schema.length" in codes(long))
     }
+    test("a field the source does not have is refused, with the real fields in the message") {
+        rejected("lint.unknown_field") { it.m("calc")["x"] = "wx.temperature" }
+        rejected("lint.unknown_field") { it.m("calc")["x"] = "wx.now.temperature + 1" }
+        rejected("lint.unknown_field") { it.m("calc")["x"] = "wx.hourly.rainChance" }
+        rejected("lint.unknown_field") { it.m("calc")["x"] = "wx.now.temp.celsius" }
+        rejected("lint.unknown_field") { it.m("calc")["x"] = "max(1, wx.hourly[0].rain)" }
+        rejected("lint.unknown_field", "rates") { it.m("calc")["x"] = "fx.EUR.TRY" }
+        val doc = load("ride-check")
+        doc.m("calc")["x"] = "wx.temperature"
+        val message = (SpecReader.read(Json.fromKotlin(doc)) as SpecResult.Rejected).problems.first().message
+        yes("now.temp" in message && "hourly[].rainChance" in message, message)
+        val fine = load("ride-check")
+        fine.m("calc")["x"] = "wx.hourly[0].rainChance + wx.now.temp + count(wx.hourly) + first(wx.hourly).temp"
+        fine.m("sources")["api"] = node("use" to "http", "with" to node("url" to "https://example.org/x.json"))
+        fine.m("calc")["y"] = "api.anything.at[3].all"
+        eq(emptyList<String>(), codes(fine))
+    }
+    test("every source has a described shape") {
+        eq(Vocabulary.SOURCE_KINDS, SourceShapes.KINDS.keys)
+        yes("- weather: with {place" in SourceShapes.describe())
+        eq(listOf("now.temp", "now.feels", "now.wind", "now.gust", "now.summary", "next3h.rainChance", "next3h.until", "hourly[].time", "hourly[].temp", "hourly[].rainChance"), SourceShapes.paths("weather"))
+    }
     test("min must be below max") {
         rejected("lint.range", "water-today") { (it.m("root").l("kids")[2] as Doc)["max"] = 0 }
     }

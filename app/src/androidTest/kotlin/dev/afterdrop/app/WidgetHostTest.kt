@@ -215,6 +215,49 @@ class WidgetHostTest {
     }
 
     @Test
+    fun typingAValueIntoAWidget() {
+        val p = place(asset("weight-log"), 180, 80)
+        waitFor(p, "the empty state") { "Tap to log" in it }
+        context.startActivity(AskActivity.intent(context, p.id, "kg", "Weight in kg"))
+        val device = androidx.test.uiautomator.UiDevice.getInstance(inst)
+        val field = device.wait(androidx.test.uiautomator.Until.findObject(androidx.test.uiautomator.By.clazz("android.widget.EditText")), 10_000)
+        assertTrue("the dialog did not open", field != null && device.hasObject(androidx.test.uiautomator.By.text("Weight in kg")))
+        field.text = "abc"
+        device.findObject(androidx.test.uiautomator.By.text("Save")).click()
+        assertTrue("a non-number was accepted", device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.text("Enter a number")), 3_000))
+        device.findObject(androidx.test.uiautomator.By.clazz("android.widget.EditText")).text = "72,5"
+        device.findObject(androidx.test.uiautomator.By.text("Save")).click()
+        waitFor(p, "the typed weight on the widget") { "72.5 kg" in it }
+        remove(p)
+    }
+
+    @Test
+    fun anEditReachesAWidgetAlreadyPlacedAndKeepsItsCount() {
+        val p = place(asset("water-today"), 180, 180)
+        waitFor(p, "the starting count") { "0 of 8 glasses" in it }
+        click(p, "+")
+        waitFor(p, "one glass") { "1 of 8 glasses" in it }
+        val changed = Store(context).rebind("Water today", asset("water-today").replace("glasses\"", "cups\"").replace("of {goal} glasses", "of {goal} cups"))
+        assertTrue("no placed widget was found by name", changed >= 1)
+        runBlocking { AfterdropWidget.refresh(context, GlanceAppWidgetManager(context).getGlanceIdBy(p.id)) }
+        waitFor(p, "the new wording with the old count") { "1 of 8 cups" in it }
+        remove(p)
+    }
+
+    @Test
+    fun calendarWidgetWorksWithAndWithoutPermission() {
+        val p = place(asset("next-up"), 330, 180)
+        waitFor(p, "the empty list without permission") { "Nothing scheduled" in it }
+        remove(p)
+        shell("pm grant ${context.packageName} android.permission.READ_CALENDAR")
+        assertTrue("permission was not granted", Sources.canReadCalendar(context))
+        val q = place(asset("next-up"), 330, 180)
+        // The emulator's calendar is empty, so the same text must come from a real, successful query.
+        waitFor(q, "the empty list with permission") { "Nothing scheduled" in it }
+        remove(q)
+    }
+
+    @Test
     fun unboundWidgetAsksToChoose() {
         val p = place(null, 180, 80)
         waitFor(p, "the choose message") { "Tap to choose a widget" in it }

@@ -241,7 +241,8 @@ private val prompt = suite("chatbot prompt") {
         val p = ChatPrompt.build("a widget for my bike rides")
         yes("a widget for my bike rides" in p)
         for (word in listOf("stepper", "surfaceVariant", "coalesce", "open_url", "calendar", "15m")) yes(word in p, word)
-        yes(p.length < 9_000, "prompt is ${p.length} characters")
+        yes(p.length < 11_000, "prompt is ${p.length} characters")
+        yes("now.temp" in p && "hourly[].rainChance" in p && "events[].title" in p)
         yes("directions_bike" in p && "wb_sunny" in p)
     }
     test("the example inside the prompt is itself a valid widget") {

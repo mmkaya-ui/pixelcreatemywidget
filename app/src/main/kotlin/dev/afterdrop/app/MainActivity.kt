@@ -62,10 +62,15 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 /** One gallery entry: a spec that is known to be valid. */
-class Entry(val name: String, val about: String, val json: String, val missing: List<String>, val mine: Boolean, val cols: Int, val rows: Int, val hosts: List<String>, val needsPlace: Boolean)
+class Entry(val name: String, val about: String, val json: String, val missing: List<String>, val mine: Boolean, val cols: Int, val rows: Int, val hosts: List<String>, val needsPlace: Boolean, val needsCalendar: Boolean)
 
 class MainActivity : ComponentActivity() {
     private var bindId = AppWidgetManager.INVALID_APPWIDGET_ID
+    private var onCalendarAnswer: (Boolean) -> Unit = {}
+    private val askCalendar = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        onCalendarAnswer(granted)
+        if (granted) lifecycleScope.launch { runCatching { AfterdropWidget.refreshAll(this@MainActivity) } }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,7 +94,7 @@ class MainActivity : ComponentActivity() {
         val spec = (SpecReader.read(json) as? SpecResult.Ok)?.spec ?: return null
         val missing = spec.sources.values.map { it.use }.filter { it !in Sources.AVAILABLE }.distinct()
         val hosts = spec.sources.values.mapNotNull { NetworkSources.host(it) }.distinct()
-        return Entry(spec.name, spec.about, json, missing, mine, spec.cols, spec.rows, hosts, spec.sources.values.any { it.use == "weather" })
+        return Entry(spec.name, spec.about, json, missing, mine, spec.cols, spec.rows, hosts, spec.sources.values.any { it.use == "weather" }, spec.sources.values.any { it.use == "calendar" })
     }
 
     private fun entries(): List<Entry> {
@@ -137,6 +142,9 @@ class MainActivity : ComponentActivity() {
         var city by remember { mutableStateOf("") }
         var place by remember { mutableStateOf(Store(this@MainActivity).home?.name) }
         var cityReport by remember { mutableStateOf("") }
+        var hosts by remember { mutableStateOf(Store(this@MainActivity).approvedHosts()) }
+        var calendarOk by remember { mutableStateOf(Sources.canReadCalendar(this@MainActivity)) }
+        onCalendarAnswer = { calendarOk = it }
         Scaffold(Modifier.fillMaxSize().imePadding()) { inner ->
             LazyColumn(
                 contentPadding = PaddingValues(
@@ -230,6 +238,17 @@ class MainActivity : ComponentActivity() {
                             if (e.hosts.isNotEmpty()) {
                                 Text("Gets data from: ${e.hosts.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
                             }
+                            for (host in e.hosts.filter { it !in Sources.BUILT_IN_HOSTS && it !in hosts }) {
+                                TextButton(onClick = {
+                                    Store(this@MainActivity).approveHost(host)
+                                    hosts = Store(this@MainActivity).approvedHosts()
+                                    RefreshWorker.now(this@MainActivity, force = true)
+                                }) { Text("Allow $host") }
+                            }
+                            if (e.needsCalendar && !calendarOk) {
+                                Text("Your calendar is read on the phone and never sent anywhere.", style = MaterialTheme.typography.bodySmall)
+                                TextButton(onClick = { askCalendar.launch(android.Manifest.permission.READ_CALENDAR) }) { Text("Allow calendar access") }
+                            }
                             if (e.needsPlace && place == null) {
                                 Text("Set your city below to see weather.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
@@ -262,11 +281,14 @@ class MainActivity : ComponentActivity() {
                                                     askReport = when (out) {
                                                         is Outcome.Ok -> {
                                                             val store = Store(this@MainActivity)
+                                                            val json = Json.write(out.spec.json)
                                                             if (out.spec.name != e.name) store.deleteUserSpec(e.name)
-                                                            store.saveUserSpec(out.spec.name, Json.write(out.spec.json))
+                                                            store.saveUserSpec(out.spec.name, json)
+                                                            val placed = store.rebind(e.name, json)
+                                                            if (placed > 0) runCatching { AfterdropWidget.refreshAll(this@MainActivity) }
                                                             list = entries()
                                                             ask = ""
-                                                            listOf("Changed \"${out.spec.name}\". Widgets already on the home screen keep their old look; add it again to use the new one.")
+                                                            listOf("Changed \"${out.spec.name}\"." + if (placed > 0) " $placed widget(s) on the home screen were updated." else "")
                                                         }
                                                         is Outcome.Failed -> listOf(out.reason, "The widget was left as it was.")
                                                     }

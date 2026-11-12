@@ -4,7 +4,7 @@ Describe a widget in plain words and get a real home-screen widget on a Pixel 7,
 independent alternative to Google's "Create My Widget", which those phones do not get.
 Not affiliated with Google.
 
-**Status: test build 0.5.0, not a stable release.** It is tested on Android 16 and 17 emulators,
+**Status: test build 0.6.0, not a stable release.** It is tested on Android 16 and 17 emulators,
 including the launcher's own "Add to home screen" flow. It has not yet been run on a real phone.
 See [ROADMAP.md](ROADMAP.md) for what is left.
 
@@ -17,15 +17,16 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
   checked; a rejected one is sent back with the reasons, up to twice, then the offline rules take over.
 - **Change with AI:** rewrite a widget you created, for example "bigger number, secondary colour".
 - **Any chatbot:** copy a ready prompt into any assistant and paste its answer back.
-- **Live data:** battery, storage, weather (Open-Meteo), exchange rates (Frankfurter), news feeds
-  (RSS and Atom) and any https address that returns JSON.
+- **Live data:** battery, storage, your calendar, weather (Open-Meteo), exchange rates (Frankfurter),
+  news feeds (RSS and Atom) and any https address that returns JSON.
+- **Type a value:** a widget can ask for a number or text, such as today's weight, in a small dialog.
+- **Edits reach the home screen:** changing a widget updates the copies already placed.
 - **Any size:** from 1 x 5 to 5 x 1 cells. What does not fit is dropped whole, controls last.
 
 ## What it does not do yet
 
-- Calendar, alarm, health, now-playing and air-quality data show a dash.
-- Icons are emoji stand-ins; images are blank.
-- No preview before adding, and a widget already on the home screen keeps its look after an edit.
+- Alarm, health, now-playing and air-quality data show a dash. Images are blank.
+- No preview before adding.
 - No model runs on the phone. Without a key, "Create" uses rules.
 - It cannot read other apps' private data. Android does not allow that.
 
@@ -36,7 +37,9 @@ Android 16 or newer. Built for Pixel 7, 8 and 9; other phones are untested.
 ## Privacy
 
 - No account, no analytics, no ads.
-- One permission: internet. No location permission; you type a city for weather.
+- Permissions: internet, and calendar only if you add a calendar widget and allow it. Calendar
+  events are read on the phone and never sent. No location permission; you type a city for weather.
+- A feed or JSON address is not contacted until you allow its host in the app.
 - The app contacts only: `api.open-meteo.com` and `geocoding-api.open-meteo.com` (weather, and the
   city name you type), `api.frankfurter.dev` (exchange rates), the feed or JSON addresses of widgets
   you add (each widget lists its hosts), and `generativelanguage.googleapis.com` when you use your

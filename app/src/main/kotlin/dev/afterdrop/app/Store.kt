@@ -17,11 +17,34 @@ class Store(context: Context) {
     fun spec(appWidgetId: Int): String? = prefs.getString("spec.$appWidgetId", null)
 
     fun bind(appWidgetId: Int, json: String) {
-        prefs.edit().putString("spec.$appWidgetId", json).remove("vars.$appWidgetId").commit()
+        prefs.edit().putString("spec.$appWidgetId", json).putString("name.$appWidgetId", nameOf(json)).remove("vars.$appWidgetId").commit()
+    }
+
+    private fun nameOf(json: String): String =
+        runCatching { ((Json.parse(json) as? JObject)?.get("name") as? JString)?.value }.getOrNull() ?: ""
+
+    /**
+     * Gives every placed widget that shows the spec called [name] the new [json], keeping its
+     * variables, so an edit reaches the home screen. Returns how many widgets changed.
+     */
+    fun rebind(name: String, json: String): Int {
+        val ids = prefs.all.keys.filter { it.startsWith("name.") && prefs.getString(it, null) == name }.map { it.removePrefix("name.") }
+        if (ids.isEmpty()) return 0
+        val e = prefs.edit()
+        for (id in ids) e.putString("spec.$id", json).putString("name.$id", nameOf(json))
+        e.commit()
+        return ids.size
+    }
+
+    /** Internet hosts the person has allowed for feed and JSON widgets. The built-in services need no approval. */
+    fun approvedHosts(): Set<String> = prefs.getStringSet("hosts", emptySet()) ?: emptySet()
+
+    fun approveHost(host: String) {
+        prefs.edit().putStringSet("hosts", approvedHosts() + host).commit()
     }
 
     fun unbind(appWidgetId: Int) {
-        prefs.edit().remove("spec.$appWidgetId").remove("vars.$appWidgetId").commit()
+        prefs.edit().remove("spec.$appWidgetId").remove("name.$appWidgetId").remove("vars.$appWidgetId").commit()
     }
 
     /** The spec chosen in the app and waiting for the launcher to create its widget. */

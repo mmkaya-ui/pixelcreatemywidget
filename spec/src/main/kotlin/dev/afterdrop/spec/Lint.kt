@@ -82,7 +82,70 @@ internal class Lint(private val spec: JObject) {
         return analyze(expr, src, path, itReads, want)
     }
 
+    /** Follows `alias.a.b[0].c` chains from a source and reports the first field that source does not have. */
+    private fun fields(e: Expr, src: String, path: String): SourceShapes.Shape? {
+        when (e) {
+            is Expr.Name -> return use(e.name)?.let { SourceShapes.KINDS[it]?.shape }
+            is Expr.Field -> {
+                val on = fields(e.target, src, path) ?: return null
+                val alias = root(e)
+                return when (on) {
+                    is SourceShapes.Obj -> on.fields[e.name] ?: run {
+                        bad("unknown_field", path, "\"${e.name}\" is not a field of the ${use(alias ?: "")} source in \"$src\"; it has: ${SourceShapes.paths(use(alias ?: "") ?: "").joinToString(", ")}")
+                        null
+                    }
+                    is SourceShapes.Arr -> {
+                        bad("unknown_field", path, "\"${e.name}\" is read from a list in \"$src\"; pick an entry with [0] or use a list function such as first() or pluck()")
+                        null
+                    }
+                    SourceShapes.Leaf -> {
+                        bad("unknown_field", path, "\"${e.name}\" is read from a plain value in \"$src\"")
+                        null
+                    }
+                    SourceShapes.Unknown -> SourceShapes.Unknown
+                }
+            }
+            is Expr.Index -> {
+                walkFields(e.index, src, path)
+                return when (val on = fields(e.target, src, path) ?: return null) {
+                    is SourceShapes.Arr -> on.of
+                    else -> SourceShapes.Unknown
+                }
+            }
+            else -> {
+                walkFields(e, src, path)
+                return null
+            }
+        }
+    }
+
+    private fun root(e: Expr): String? = when (e) {
+        is Expr.Name -> e.name
+        is Expr.Field -> root(e.target)
+        is Expr.Index -> root(e.target)
+        else -> null
+    }
+
+    private fun walkFields(e: Expr, src: String, path: String) {
+        when (e) {
+            is Expr.Field, is Expr.Index -> fields(e, src, path)
+            is Expr.Call -> e.args.forEach { walkFields(it, src, path) }
+            is Expr.Unary -> walkFields(e.operand, src, path)
+            is Expr.Binary -> {
+                walkFields(e.left, src, path)
+                walkFields(e.right, src, path)
+            }
+            is Expr.Ternary -> {
+                walkFields(e.cond, src, path)
+                walkFields(e.then, src, path)
+                walkFields(e.otherwise, src, path)
+            }
+            is Expr.Lit, is Expr.Name -> {}
+        }
+    }
+
     private fun analyze(expr: Expr, src: String, path: String, itReads: Set<String>?, want: Type?): Analysis {
+        walkFields(expr, src, path)
         val a = Checker.analyze(expr, env(itReads))
         for (issue in a.issues) bad(issue.code, path, "${issue.message} in \"$src\"")
         if (want != null && a.type != Type.ANY && a.type != want) {
