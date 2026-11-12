@@ -1,6 +1,6 @@
 # Roadmap to a public release
 
-Status on 12 November 2026: version 0.4.0. Not ready to publish. Every "done" item below is
+Status on 12 November 2026: version 0.6.0. Not ready to publish. Every "done" item below is
 covered by tests that run in CI, including emulator runs on Android 16 and 17. Android 16 is the minimum.
 
 ## Done
@@ -17,17 +17,20 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 
 - [ ] Install on a Pixel 8 Pro and add widgets through the Pixel Launcher
 - [ ] Check pinning, resizing by dragging, dark theme, large font, tap-through actions
-- [ ] One real Create with AI call with a real key
+- [x] One real Create with AI call with a real key
 - [ ] Fix what that finds
 
 ## Step 2: finish the core promise
 
-- [ ] Edit a widget by AI ("make the text bigger, use blue")
+- [x] Edit a widget by AI ("make the text bigger, use blue")
 - [ ] Preview before adding, and a way to change or delete a placed widget's design
-- [ ] Real icons instead of emoji stand-ins; images
-- [ ] The `ask` action (type a value into a widget) and the `edit` action
-- [ ] Calendar source (needs the calendar permission, asked only when a widget uses it)
-- [ ] Approval screen for each new host a pasted or generated widget wants to contact
+- [x] Real icons instead of emoji stand-ins
+- [ ] Images
+- [x] The `ask` action (type a value into a widget)
+- [x] An AI edit updates widgets already on the home screen
+- [x] Sources declare their fields; a widget reading a field that does not exist is refused
+- [x] Calendar source (needs the calendar permission, asked only when a widget uses it)
+- [x] Approval screen for each new host a pasted or generated widget wants to contact
 
 ## Step 3: the extras asked for
 
