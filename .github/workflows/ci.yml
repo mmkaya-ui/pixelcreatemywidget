@@ -52,6 +52,15 @@ jobs:
           name: afterdrop-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      # Proves the release signing path works without touching the real key: a throwaway key is
+      # made here, the release APK is built and signed with it, and the signature is checked.
+      - name: Release build signed with a throwaway key
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/throwaway.jks" -storetype PKCS12 -storepass throwaway1 -keypass throwaway1 \
+            -alias afterdrop -keyalg RSA -keysize 2048 -validity 1 -dname "CN=Throwaway" 2>/dev/null
+          RELEASE_KEYSTORE_FILE="$RUNNER_TEMP/throwaway.jks" RELEASE_KEYSTORE_PASSWORD=throwaway1 ./gradlew :app:assembleRelease
+          SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$SIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep "CN=Throwaway"
 
   emulator:
     name: Emulator tests (API ${{ matrix.api }})

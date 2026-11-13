@@ -1,7 +1,9 @@
 name: Release
-# Runs when a version tag such as v1.0.0 is pushed: tests, builds the APK signed with the private
-# release key, checks the signature, and publishes it as a GitHub release.
+# Publishes the version named in app/build.gradle.kts as a GitHub release: tests, builds the APK
+# signed with the private release key, checks the signature, and attaches it to the release.
+# Start it from the Actions tab ("Release" > "Run workflow"), or by pushing a tag such as v1.0.0.
 on:
+  workflow_dispatch:
   push:
     tags: ["v*"]
 
@@ -17,6 +19,13 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - name: Version to publish
+        run: |
+          V="v$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$V" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match versionName $V"; exit 1
+          fi
+          echo "TAG=$V" >> "$GITHUB_ENV"
       - name: Core tests
         run: scripts/check.sh
       - name: Write the signing key from the repository secret
@@ -40,9 +49,8 @@ jobs:
           SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
           "$SIGNER" verify --print-certs "$APK" | tee signature.txt
           grep -q "CN=Mert Mercankaya" signature.txt
-          test "v$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)" = "$GITHUB_REF_NAME"
-          cp "$APK" "afterdrop-${GITHUB_REF_NAME#v}.apk"
-          sha256sum "afterdrop-${GITHUB_REF_NAME#v}.apk" | tee checksum.txt
+          cp "$APK" "afterdrop-${TAG#v}.apk"
+          sha256sum "afterdrop-${TAG#v}.apk" | tee checksum.txt
       - name: Remove the key file
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"
@@ -50,5 +58,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "afterdrop-${GITHUB_REF_NAME#v}.apk" --title "Afterdrop ${GITHUB_REF_NAME#v}" \
-            --notes "Afterdrop ${GITHUB_REF_NAME#v} for Android 16 and newer, built for Pixel 7, 8 and 9. Download the APK below and open it on the phone to install. If you installed an earlier test build, uninstall it first: it was signed with a different key. SHA-256: $(cut -d' ' -f1 checksum.txt)"
+          gh release create "$TAG" "afterdrop-${TAG#v}.apk" --target "$GITHUB_SHA" --title "Afterdrop ${TAG#v}" \
+            --notes "Afterdrop ${TAG#v} for Android 16 and newer, built for Pixel 7, 8 and 9. Download the APK below and open it on the phone to install. If you installed an earlier test build, uninstall it first: it was signed with a different key. SHA-256: $(cut -d' ' -f1 checksum.txt)"

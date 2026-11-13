@@ -18,6 +18,20 @@ class AppScreenTest {
     private fun onScreen(): List<String> =
         device.findObjects(By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { it.text }.filter { it.isNotBlank() }.distinct().take(25)
 
+    /**
+     * Typed text reaches Compose a frame later, and Create stays disabled until it does, so a click
+     * straight after typing can land on a disabled button. Wait for it to be enabled, and press again
+     * once if nothing answered.
+     */
+    private fun pressCreate(expect: String): Any? {
+        repeat(2) {
+            device.wait(Until.findObject(By.text("Create").enabled(true)), 5_000)?.click()
+                ?: device.findObject(By.text("Create"))?.click()
+            device.wait(Until.findObject(By.textStartsWith(expect)), 5_000)?.let { return it }
+        }
+        return null
+    }
+
     @Test
     fun describeCreatesAWidgetAndRefusesHonestly() {
         ActivityScenario.launch(MainActivity::class.java).use {
@@ -33,13 +47,11 @@ class AppScreenTest {
             val field = device.findObjects(By.clazz("android.widget.EditText")).firstOrNull()
             assertNotNull("description field missing", field)
             field!!.text = "countdown to 24 December"
-            device.findObject(By.text("Create")).click()
-            assertNotNull("no confirmation after Create", device.wait(Until.findObject(By.textStartsWith("Created \"24 December\"")), 5_000))
+            assertNotNull("no confirmation after Create; the screen shows: " + onScreen(), pressCreate("Created \"24 December\""))
             assertNotNull("new widget is not listed", device.wait(Until.findObject(By.text("24 December")), 5_000))
 
             device.findObjects(By.clazz("android.widget.EditText")).first().text = "a widget that orders pizza"
-            device.findObject(By.text("Create")).click()
-            assertNotNull("no honest refusal", device.wait(Until.findObject(By.textStartsWith("The offline rules cover")), 5_000))
+            assertNotNull("no honest refusal; the screen shows: " + onScreen(), pressCreate("The offline rules cover"))
         }
     }
 }
