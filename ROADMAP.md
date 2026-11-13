@@ -11,7 +11,7 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 - [x] Describe a widget with offline rules; chatbot-prompt route
 - [x] Create with AI using your own Gemini key, with repair loop and offline fallback
 - [x] Live data: battery, storage, weather, exchange rates, news feeds, generic JSON
-- [x] Emulator tests on four Android versions, including live calls to the data services
+- [x] Emulator tests on Android 16 and 17, including live calls to the data services
 
 ## Step 1: first run on a real phone (blocks everything else)
 
@@ -45,7 +45,7 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 - [x] Licence decided: all rights reserved, copyright Mert Mercankaya
 - [ ] Final name check for trademark and package-name clashes
 - [x] A release signing key kept out of the repository; signed release builds in CI
-- [ ] App icon, screenshots, README with honest limits, privacy note listing every host contacted
+- [x] App icon, screenshots, README with honest limits, privacy note listing every host contacted
 - [ ] Translations of the app's own text (English, German, Turkish first)
 - [ ] 24-hour battery measurement with four widgets
 - [ ] Version 1.0 tag and GitHub release

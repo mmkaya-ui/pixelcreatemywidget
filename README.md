@@ -49,6 +49,18 @@ Android 16 or newer. Built for Pixel 7, 8 and 9; other phones are untested.
 - A widget's parameters for internet sources cannot read calendar, health, notes or media data,
   directly or through a formula, a variable or a list item. This is enforced when a widget is read.
 
+## Screenshots
+
+Taken by the automated tests on an Android 16 emulator: the app, a wall of widgets in light theme,
+the same wall in dark theme with the largest font, and a widget placed on the home screen.
+
+<p>
+<img src="docs/screenshots/app-top.png" width="200" alt="The app screen">
+<img src="docs/screenshots/wall-light.png" width="200" alt="Widgets in light theme">
+<img src="docs/screenshots/wall-dark-largefont.png" width="200" alt="Widgets in dark theme with large font">
+<img src="docs/screenshots/home-with-widget.png" width="200" alt="A widget on the home screen">
+</p>
+
 ## Install
 
 Download the APK from the repository's Releases page and open it on the phone. Releases are signed

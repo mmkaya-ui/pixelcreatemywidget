@@ -6,5 +6,7 @@ Pixel and Android are trademarks of Google LLC.
 
 Icons are Material Icons by Google, used under the Apache License, Version 2.0.
 
-Weather data comes from Open-Meteo (open-meteo.com). Exchange rates come from
+Weather and air-quality data come from Open-Meteo (open-meteo.com), licensed CC BY 4.0;
+air-quality data there is based on the Copernicus Atmosphere Monitoring Service (CAMS).
+Exchange rates come from
 Frankfurter (frankfurter.dev), which publishes European Central Bank reference rates.

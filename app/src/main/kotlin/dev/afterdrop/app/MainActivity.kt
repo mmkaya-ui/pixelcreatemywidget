@@ -14,6 +14,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -136,6 +138,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Buttons wrap to a new line instead of squeezing ("Dele/te") on narrow screens or large fonts.
+    @OptIn(ExperimentalLayoutApi::class)
     @Composable
     private fun Screen() {
         var list by remember { mutableStateOf(entries()) }
@@ -176,7 +180,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(), maxLines = 4,
                             label = { Text("For example: countdown to 24 December") },
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        FlowRow(itemVerticalAlignment = Alignment.CenterVertically) {
                             Button(enabled = ask.isNotBlank(), onClick = {
                                 askReport = when (val d = Describe.fromText(ask, LocalDate.now())) {
                                     is Described.No -> listOf(d.reason)
@@ -288,7 +292,7 @@ class MainActivity : ComponentActivity() {
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
                                 )
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            FlowRow(itemVerticalAlignment = Alignment.CenterVertically) {
                                 Button(onClick = { choose(e) { report = listOf(it) } }) {
                                     Text(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) "Use this" else "Add to home screen")
                                 }
