@@ -1,0 +1,54 @@
+name: Release
+# Runs when a version tag such as v1.0.0 is pushed: tests, builds the APK signed with the private
+# release key, checks the signature, and publishes it as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Core tests
+        run: scripts/check.sh
+      - name: Write the signing key from the repository secret
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ] || [ -z "$RELEASE_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Add the RELEASE_KEYSTORE_BASE64 and RELEASE_KEYSTORE_PASSWORD secrets before tagging a release."
+            exit 1
+          fi
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+      - name: Build the signed APK
+        env:
+          RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+      - name: Check the signature and the version
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$SIGNER" verify --print-certs "$APK" | tee signature.txt
+          grep -q "CN=Mert Mercankaya" signature.txt
+          test "v$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)" = "$GITHUB_REF_NAME"
+          cp "$APK" "afterdrop-${GITHUB_REF_NAME#v}.apk"
+          sha256sum "afterdrop-${GITHUB_REF_NAME#v}.apk" | tee checksum.txt
+      - name: Remove the key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "afterdrop-${GITHUB_REF_NAME#v}.apk" --title "Afterdrop ${GITHUB_REF_NAME#v}" \
+            --notes "Afterdrop ${GITHUB_REF_NAME#v} for Android 16 and newer, built for Pixel 7, 8 and 9. Download the APK below and open it on the phone to install. If you installed an earlier test build, uninstall it first: it was signed with a different key. SHA-256: $(cut -d' ' -f1 checksum.txt)"

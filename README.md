@@ -4,8 +4,8 @@ Describe a widget in plain words and get a real home-screen widget on a Pixel 7,
 independent alternative to Google's "Create My Widget", which those phones do not get.
 Not affiliated with Google.
 
-**Status: test build 0.7.0, not a stable release.** It is tested on Android 16 and 17 emulators,
-including the launcher's own "Add to home screen" flow. It has not yet been run on a real phone.
+**Status: version 1.0.0.** It is tested on Android 16 and 17 emulators, including the launcher's own
+"Add to home screen" flow and live data. It has not yet been run on a real phone, so expect rough edges.
 See [ROADMAP.md](ROADMAP.md) for what is left.
 
 ## What it does today
@@ -17,7 +17,7 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
   checked; a rejected one is sent back with the reasons, up to twice, then the offline rules take over.
 - **Change with AI:** rewrite a widget you created, for example "bigger number, secondary colour".
 - **Any chatbot:** copy a ready prompt into any assistant and paste its answer back.
-- **Live data:** battery, storage, your calendar, weather (Open-Meteo), exchange rates (Frankfurter),
+- **Live data:** battery, storage, your next alarm, your calendar, weather and air quality (Open-Meteo), exchange rates (Frankfurter),
   news feeds (RSS and Atom) and any https address that returns JSON.
 - **Type a value:** a widget can ask for a number or text, such as today's weight, in a small dialog.
 - **Edits reach the home screen:** changing a widget updates the copies already placed.
@@ -26,7 +26,7 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
 
 ## What it does not do yet
 
-- Alarm, health, now-playing and air-quality data show a dash. Images are blank.
+- Health and now-playing data show a dash. Images are blank.
 - No preview before adding.
 - No model runs on the phone. Without a key, "Create" uses rules.
 - It cannot read other apps' private data. Android does not allow that.
@@ -41,13 +41,19 @@ Android 16 or newer. Built for Pixel 7, 8 and 9; other phones are untested.
 - Permissions: internet, and calendar only if you add a calendar widget and allow it. Calendar
   events are read on the phone and never sent. No location permission; you type a city for weather.
 - A feed or JSON address is not contacted until you allow its host in the app.
-- The app contacts only: `api.open-meteo.com` and `geocoding-api.open-meteo.com` (weather, and the
-  city name you type), `api.frankfurter.dev` (exchange rates), the feed or JSON addresses of widgets
+- The app contacts only: `api.open-meteo.com`, `air-quality-api.open-meteo.com` and
+  `geocoding-api.open-meteo.com` (weather, air quality, and the city name you type), `api.frankfurter.dev` (exchange rates), the feed or JSON addresses of widgets
   you add (each widget lists its hosts), and `generativelanguage.googleapis.com` when you use your
   own Gemini key (your description, and for an edit the widget itself, are sent).
 - Your Gemini key is stored in the app's private storage and sent only to Google's API.
 - A widget's parameters for internet sources cannot read calendar, health, notes or media data,
   directly or through a formula, a variable or a list item. This is enforced when a widget is read.
+
+## Install
+
+Download the APK from the repository's Releases page and open it on the phone. Releases are signed
+with a private key; the APKs attached to CI runs are test builds signed with a public test key, and
+one cannot be installed over the other.
 
 ## Build and test
 

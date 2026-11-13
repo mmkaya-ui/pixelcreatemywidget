@@ -14,8 +14,8 @@ android {
         applicationId = "dev.afterdrop.app"
         minSdk = 36 // Android 16. Every Pixel 7, 8 and 9 has been offered it; older versions are not tested.
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 10
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -27,6 +27,20 @@ android {
             keyPassword = "android"
         }
     }
+    // The release key never lives in the repository. CI writes it from a secret and names it here;
+    // without it, a release build is left unsigned and cannot be installed, which is the safe failure.
+    val releaseKeystore = System.getenv("RELEASE_KEYSTORE_FILE")
+    val releasePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+    if (!releaseKeystore.isNullOrBlank() && !releasePassword.isNullOrBlank()) {
+        signingConfigs.create("release") {
+            storeFile = file(releaseKeystore)
+            storePassword = releasePassword
+            keyAlias = "afterdrop"
+            keyPassword = releasePassword
+        }
+        buildTypes.getByName("release") { signingConfig = signingConfigs.getByName("release") }
+    }
+    buildTypes.getByName("release") { isMinifyEnabled = false }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

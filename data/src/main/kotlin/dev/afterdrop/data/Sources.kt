@@ -39,12 +39,13 @@ class Request(val url: String, val parse: (String) -> Value?)
  */
 object NetworkSources {
     /** Source kinds this object can fetch. */
-    val KINDS = setOf("weather", "rates", "feed", "http")
+    val KINDS = setOf("weather", "air", "rates", "feed", "http")
     const val MAX_ITEMS = 20
 
     /** The hosts a source will contact, shown to the person before they add a widget. */
     fun host(source: Source): String? = when (source.use) {
         "weather" -> "api.open-meteo.com"
+        "air" -> "air-quality-api.open-meteo.com"
         "rates" -> "api.frankfurter.dev"
         "feed", "http" -> text(source, "url")?.let { hostOf(it) }
         else -> null
@@ -55,7 +56,7 @@ object NetworkSources {
 
     /** A stable key for caching: two widgets with the same source share one fetch. */
     fun cacheKey(source: Source, home: Place?): String =
-        source.use + "|" + Json.write(source.with) + (if (source.use == "weather") "|" + (home?.let { "${it.lat},${it.lon}" } ?: "") else "")
+        source.use + "|" + Json.write(source.with) + (if (source.use == "weather" || source.use == "air") "|" + (home?.let { "${it.lat},${it.lon}" } ?: "") else "")
 
     /** How often to refetch, in milliseconds. Never faster than 15 minutes. */
     fun interval(source: Source): Long = when (source.every) {
@@ -78,6 +79,7 @@ object NetworkSources {
             val imperial = text(source, "units") == "imperial"
             Request(weatherUrl(place, imperial)) { parseWeather(it) }
         }
+        "air" -> home?.let { place -> Request(airUrl(place)) { parseAir(it) } }
         "rates" -> {
             val base = text(source, "base")?.uppercase()
             val quote = text(source, "quote")?.uppercase()
@@ -154,6 +156,20 @@ object NetworkSources {
                 "hourly" to Value.ListV(hours),
             )
         )
+    }
+
+    // ---- air quality (Open-Meteo) ----
+
+    fun airUrl(place: Place): String =
+        "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${round4(place.lat)}&longitude=${round4(place.lon)}" +
+            "&current=european_aqi,pm2_5,pm10"
+
+    /** `aqi` is the European Air Quality Index: 0-20 good, over 60 poor, over 100 very poor. */
+    fun parseAir(body: String): Value? {
+        val current = json(body)?.get("current") as? JObject ?: return null
+        fun cur(key: String): Value = (current[key] as? JNumber)?.let { Value.Num(it.value) } ?: Value.Null
+        if (cur("european_aqi") == Value.Null) return null
+        return Value.Obj(mapOf("aqi" to cur("european_aqi"), "pm25" to cur("pm2_5"), "pm10" to cur("pm10")))
     }
 
     /** WMO weather interpretation codes, as Open-Meteo reports them. */

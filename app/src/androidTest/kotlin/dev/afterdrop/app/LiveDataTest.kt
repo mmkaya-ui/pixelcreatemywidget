@@ -53,6 +53,24 @@ class LiveDataTest {
     }
 
     @Test
+    fun airQualityIsReal() {
+        assumeTrue("no internet on this emulator", online())
+        Store(context).home = dev.afterdrop.data.Place("Stuttgart, DE", 48.78, 9.18)
+        val updated = Sources.refresh(context, listOf(spec("air-quality")), HttpsFetcher, force = true)
+        val shown = texts("air-quality")
+        Log.i(TAG, "air updated=$updated shows $shown")
+        assertTrue("air quality was not fetched", updated == 1)
+        assertTrue("the index is not a number: $shown", shown.any { Regex("\\d{1,3}").matches(it) })
+    }
+
+    @Test
+    fun nextAlarmReadsWithoutPermission() {
+        val shown = texts("morning-dashboard")
+        Log.i(TAG, "alarm shows $shown")
+        assertTrue("alarm line missing: $shown", shown.any { it == "No alarm set" || Regex("\\w{3} \\d\\d:\\d\\d").matches(it) })
+    }
+
+    @Test
     fun exchangeRatesAreReal() {
         assumeTrue("no internet on this emulator", online())
         val updated = Sources.refresh(context, listOf(spec("rates")), HttpsFetcher, force = true)

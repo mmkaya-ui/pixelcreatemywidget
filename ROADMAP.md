@@ -1,6 +1,6 @@
 # Roadmap to a public release
 
-Status on 12 November 2026: version 0.6.0. Not ready to publish. Every "done" item below is
+Status on 12 November 2026: version 1.0.0. Not ready to publish. Every "done" item below is
 covered by tests that run in CI, including emulator runs on Android 16 and 17. Android 16 is the minimum.
 
 ## Done
@@ -35,8 +35,8 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 ## Step 3: the extras asked for
 
 - [x] Stack: one widget holding up to six, flipped by a tap
-- [ ] Alarm, now-playing and health sources (each behind its own permission)
-- [ ] Air quality source
+- [x] Next alarm and air quality sources
+- [ ] Now-playing and health sources (each behind its own permission)
 - [ ] On-device model (Gemma or Gemini Nano) once measured on the phone
 - [ ] Share a widget as a link or file, with the same checks on import
 
@@ -44,7 +44,7 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 
 - [x] Licence decided: all rights reserved, copyright Mert Mercankaya
 - [ ] Final name check for trademark and package-name clashes
-- [ ] A release signing key kept out of the repository; signed release builds in CI
+- [x] A release signing key kept out of the repository; signed release builds in CI
 - [ ] App icon, screenshots, README with honest limits, privacy note listing every host contacted
 - [ ] Translations of the app's own text (English, German, Turkish first)
 - [ ] 24-hour battery measurement with four widgets

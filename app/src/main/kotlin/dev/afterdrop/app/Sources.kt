@@ -26,10 +26,10 @@ import java.time.LocalDate
  * drawing a widget never waits on the network. Sources not provided yet read as missing.
  */
 object Sources {
-    val AVAILABLE = setOf("battery", "device", "calendar") + NetworkSources.KINDS
+    val AVAILABLE = setOf("battery", "device", "calendar", "alarm") + NetworkSources.KINDS
 
     /** Services the app itself chose. Any other host must be allowed by the person first. */
-    val BUILT_IN_HOSTS = setOf("api.open-meteo.com", "api.frankfurter.dev")
+    val BUILT_IN_HOSTS = setOf("api.open-meteo.com", "air-quality-api.open-meteo.com", "api.frankfurter.dev")
 
     fun allowed(context: Context, source: Source): Boolean {
         val host = NetworkSources.host(source) ?: return true
@@ -49,6 +49,10 @@ object Sources {
                     "battery" -> battery(context)
                     "device" -> device()
                     "calendar" -> calendar(context, source)
+                    // The next alarm the system knows about. Needs no permission; 0 means none is set.
+                    "alarm" -> Value.Obj(mapOf("next" to Value.Num(
+                        (context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock?.triggerTime ?: 0L).toDouble()
+                    )))
                     in NetworkSources.KINDS -> store.cached(NetworkSources.cacheKey(source, home))?.first?.toValue()
                     else -> null
                 }

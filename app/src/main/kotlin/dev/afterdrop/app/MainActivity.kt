@@ -94,7 +94,7 @@ class MainActivity : ComponentActivity() {
         val spec = (SpecReader.read(json) as? SpecResult.Ok)?.spec ?: return null
         val missing = spec.sources.values.map { it.use }.filter { it !in Sources.AVAILABLE }.distinct()
         val hosts = spec.sources.values.mapNotNull { NetworkSources.host(it) }.distinct()
-        return Entry(spec.name, spec.about, json, missing, mine, spec.cols, spec.rows, hosts, spec.sources.values.any { it.use == "weather" }, spec.sources.values.any { it.use == "calendar" })
+        return Entry(spec.name, spec.about, json, missing, mine, spec.cols, spec.rows, hosts, spec.sources.values.any { it.use == "weather" || it.use == "air" }, spec.sources.values.any { it.use == "calendar" })
     }
 
     private fun entries(): List<Entry> {
@@ -280,7 +280,7 @@ class MainActivity : ComponentActivity() {
                                 TextButton(onClick = { askCalendar.launch(android.Manifest.permission.READ_CALENDAR) }) { Text("Allow calendar access") }
                             }
                             if (e.needsPlace && place == null) {
-                                Text("Set your city below to see weather.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text("Set your city below to see weather and air quality.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                             if (e.missing.isNotEmpty()) {
                                 Text(

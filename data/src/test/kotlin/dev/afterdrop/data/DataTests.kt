@@ -69,6 +69,20 @@ private val weather = suite("weather") {
     }
 }
 
+private val air = suite("air quality") {
+    test("request and answer") {
+        val r = NetworkSources.request(spec("air-quality").sources.getValue("air"), STUTTGART, TODAY)!!
+        eq("https://air-quality-api.open-meteo.com/v1/air-quality?latitude=48.78&longitude=9.18&current=european_aqi,pm2_5,pm10", r.url)
+        val v = r.parse("""{"current":{"time":"2026-11-13T10:00","european_aqi":42,"pm2_5":9.8,"pm10":14.1}}""")
+        eq(n(42), at(v, "d.aqi"))
+        eq(n(9.8), at(v, "d.pm25"))
+        eq(null, NetworkSources.request(spec("air-quality").sources.getValue("air"), null, TODAY))
+        eq(null, NetworkSources.parseAir("""{"current":{}}"""))
+        eq(null, NetworkSources.parseAir("x"))
+        eq("air-quality-api.open-meteo.com", NetworkSources.host(spec("air-quality").sources.getValue("air")))
+    }
+}
+
 private val rates = suite("rates") {
     val src = spec("rates").sources.getValue("fx")
     test("request covers the asked number of days") {
@@ -163,4 +177,4 @@ private val general = suite("requests") {
     }
 }
 
-fun main() = runSuites(weather, rates, feeds, general)
+fun main() = runSuites(weather, air, rates, feeds, general)
