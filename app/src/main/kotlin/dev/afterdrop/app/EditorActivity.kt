@@ -179,7 +179,7 @@ class EditorActivity : ComponentActivity() {
                         val isSelected = part.path == selected
                         Column(
                             Modifier.fillMaxWidth()
-                                .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent, RoundedCornerShape(12.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent, RoundedCornerShape(12.dp))
                                 .clickable { selected = if (isSelected) null else part.path; lastField = "" }
                                 .padding(start = (8 + part.depth * 16).dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                         ) {
@@ -188,7 +188,8 @@ class EditorActivity : ComponentActivity() {
                                 style = MaterialTheme.typography.bodyLarge, maxLines = 1,
                                 modifier = Modifier.semantics { contentDescription = "Part ${part.label}" },
                             )
-                            Text(TYPE_NAMES[part.type] ?: part.type, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            val kind = TYPE_NAMES[part.type] ?: part.type
+                            if (kind != part.label) Text(kind, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (isSelected) {
                                 val node = SpecEdit.node(doc, part.path)
                                 if (node != null) {
