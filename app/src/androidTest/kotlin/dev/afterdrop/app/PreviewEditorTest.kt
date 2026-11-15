@@ -130,9 +130,10 @@ class PreviewEditorTest {
         device.wait(Until.findObject(By.text("Plug in soon")), 5_000)!!.click()
         val field = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)
         assertNotNull("no text field for the part", field)
-        field!!.text = "{num(bat.level"
+        // The battery source has no such field, so this is refused; an unclosed brace would just be text.
+        field!!.text = "{bat.nothing}"
         assertNotNull("no warning for a broken formula; the screen shows: " + onScreen(), device.wait(Until.findObject(By.textContains("Not applied yet")), 5_000))
-        assertNotNull("the typing was lost", device.findObject(By.text("{num(bat.level")))
+        assertNotNull("the typing was lost", device.findObject(By.text("{bat.nothing}")))
         device.findObject(By.text("Cancel"))?.click()
     }
 
