@@ -22,7 +22,7 @@ class NoteTest {
     private val device = UiDevice.getInstance(inst)
 
     private fun onScreen(): List<String> =
-        device.findObjects(By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { it.text }.filter { it.isNotBlank() }.distinct().take(25)
+        runCatching { device.findObjects(By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { runCatching { it.text }.getOrNull() }.filter { it.isNotBlank() }.distinct().take(25) }.getOrDefault(emptyList())
 
     /** The dialog redraws while the keyboard opens, so the button is looked up afresh until a press lands. */
     private fun save() {

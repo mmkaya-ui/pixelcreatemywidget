@@ -16,7 +16,7 @@ class AppScreenTest {
     private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
     private fun onScreen(): List<String> =
-        device.findObjects(By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { it.text }.filter { it.isNotBlank() }.distinct().take(25)
+        runCatching { device.findObjects(By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { runCatching { it.text }.getOrNull() }.filter { it.isNotBlank() }.distinct().take(25) }.getOrDefault(emptyList())
 
     /**
      * Typed text reaches Compose a frame later, and Create stays disabled until it does, so a click
