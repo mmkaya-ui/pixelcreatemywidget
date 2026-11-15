@@ -17,17 +17,30 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
   checked; a rejected one is sent back with the reasons, up to twice, then the offline rules take over.
 - **Change with AI:** rewrite a widget you created, for example "bigger number, secondary colour".
 - **Any chatbot:** copy a ready prompt into any assistant and paste its answer back.
-- **Live data:** battery, storage, your next alarm, your calendar, weather and air quality (Open-Meteo), exchange rates (Frankfurter),
-  news feeds (RSS and Atom) and any https address that returns JSON.
+- **Live data:** battery, storage, your next alarm, your calendar, steps (Health Connect: today and
+  the last seven days), what is playing in any music app (song, artist, cover art), weather and air
+  quality (Open-Meteo), exchange rates (Frankfurter), news feeds with their pictures (RSS and Atom),
+  any https address that returns JSON, and short AI texts written by Gemini with your key.
+- **Notes:** tap a note widget to write on it, or share text from any app to "Afterdrop note".
 - **Type a value:** a widget can ask for a number or text, such as today's weight, in a small dialog.
 - **Edits reach the home screen:** changing a widget updates the copies already placed.
 - **Stacks:** one widget can hold up to six, flipped by tapping the dots under it. Each keeps its own values.
 - **Any size:** from 1 x 5 to 5 x 1 cells. What does not fit is dropped whole, controls last.
 
+## Setting up the data that needs your permission
+
+- **Steps:** on the widget's card in the app, press "Allow step access". Health Connect shows its own
+  screen; allow "Steps" and "Access data in the background" so the widget updates while the app is closed.
+- **What is playing:** press "Allow notification access" on the card and turn Afterdrop on. Because the
+  APK is not installed from a store, Android may first say "Restricted setting". Then open App info
+  (the card has a button), tap the three dots at the top right, choose "Allow restricted settings",
+  and try again. Afterdrop only asks Android which song is playing; it does not read your notifications.
+- **AI text:** add your Gemini API key in the app. Until then the widget says so.
+
 ## What it does not do yet
 
-- Health and now-playing data show a dash. Images are blank.
 - No preview before adding.
+- Steps are the only health data; sleep, heart rate and the like are not read.
 - No model runs on the phone. Without a key, "Create" uses rules.
 - It cannot read other apps' private data. Android does not allow that.
 
@@ -38,13 +51,16 @@ Android 16 or newer. Built for Pixel 7, 8 and 9; other phones are untested.
 ## Privacy
 
 - No account, no analytics, no ads.
-- Permissions: internet, and calendar only if you add a calendar widget and allow it. Calendar
-  events are read on the phone and never sent. No location permission; you type a city for weather.
+- Permissions: internet; calendar, steps and notification access only if you add such a widget and
+  allow it. Calendar events, steps, notes and what is playing are read on the phone and never sent.
+  No location permission; you type a city for weather. The app's privacy page lists all of this.
 - A feed or JSON address is not contacted until you allow its host in the app.
 - The app contacts only: `api.open-meteo.com`, `air-quality-api.open-meteo.com` and
   `geocoding-api.open-meteo.com` (weather, air quality, and the city name you type), `api.frankfurter.dev` (exchange rates), the feed or JSON addresses of widgets
   you add (each widget lists its hosts), and `generativelanguage.googleapis.com` when you use your
-  own Gemini key (your description, and for an edit the widget itself, are sent).
+  own Gemini key (your description, for an edit the widget itself, and the prompt of an AI text
+  widget are sent). Pictures that feed data points to are downloaded from where it says, like any
+  feed reader does, and kept small in the app's cache.
 - Your Gemini key is stored in the app's private storage and sent only to Google's API.
 - A widget's parameters for internet sources cannot read calendar, health, notes or media data,
   directly or through a formula, a variable or a list item. This is enforced when a widget is read.
@@ -76,7 +92,8 @@ scripts/check.sh              # core tests with only kotlinc and a JDK
 ```
 
 CI also runs the app on Android 16 and 17 emulators: every gallery widget at five sizes, dark theme
-with a 1.5x font, live calls to the data services, and pinning a widget through the launcher.
+with a 1.5x font, live calls to the data services, pinning a widget through the launcher, a real
+media session, step records written into Health Connect, sharing text into a note, and feed pictures.
 If the repository has a `GEMINI_API_KEY` secret, CI also holds a real conversation with Gemini.
 
 ## Modules
@@ -88,7 +105,7 @@ If the repository has a `GEMINI_API_KEY` secret, CI also holds a real conversati
 | `engine` | Turns a spec plus data into visible, evaluated nodes; applies controls; fits content to the widget's size. |
 | `composer` | Expands a short brief into a full spec; the offline describe rules; the chatbot prompt. |
 | `ai` | The ask-validate-repair loop and a small Gemini client with model fallback. |
-| `data` | Weather, exchange rates, feeds and JSON: request building and parsing. |
+| `data` | Weather, air quality, exchange rates, feeds (with pictures) and JSON: request building and parsing. |
 | `app` | The Android app: gallery, describe screen, one Glance widget that renders any spec. |
 | `testkit` | A dependency-free test harness. |
 | `golden/valid` | 18 valid widget specs, which double as the gallery. |

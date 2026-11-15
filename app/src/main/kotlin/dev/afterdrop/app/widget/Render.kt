@@ -227,7 +227,7 @@ private fun openSource(t: Tap.OpenSource, n: RNode, env: Env): Intent {
         "battery" -> Intent(Intent.ACTION_POWER_USAGE_SUMMARY)
         "media" -> NowPlaying.launchIntent(ctx) ?: setup
         "health" -> if (Steps.granted(ctx)) Steps.settingsIntent() else setup
-        "notes" -> env.sources[t.source]?.let { NoteActivity.intent(ctx, Sources.noteName(it)) } ?: setup
+        "notes" -> env.sources[t.alias]?.let { NoteActivity.intent(ctx, Sources.noteName(it)) } ?: setup
         // A story in a feed list opens the story itself.
         "feed" -> ((n.item as? Value.Obj)?.fields?.get("link") as? Value.Str)?.v?.takeIf { it.startsWith("https://") }
             ?.let { Intent(Intent.ACTION_VIEW, Uri.parse(it)) } ?: setup

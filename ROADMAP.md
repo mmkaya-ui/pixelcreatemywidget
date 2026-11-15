@@ -1,6 +1,7 @@
 # Roadmap to a public release
 
-Status on 12 November 2026: version 1.0.0. Not ready to publish. Every "done" item below is
+Status on 15 November 2026: version 1.0.0. Every data source gives real data; nothing in the gallery
+is a stand-in. Not yet run on a real phone. Every "done" item below is
 covered by tests that run in CI, including emulator runs on Android 16 and 17. Android 16 is the minimum.
 
 ## Done
@@ -10,7 +11,8 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 - [x] Android app: gallery, one widget that renders any spec, five starting sizes
 - [x] Describe a widget with offline rules; chatbot-prompt route
 - [x] Create with AI using your own Gemini key, with repair loop and offline fallback
-- [x] Live data: battery, storage, weather, exchange rates, news feeds, generic JSON
+- [x] Live data: battery, storage, alarm, calendar, steps, now playing, notes, weather, air quality,
+  exchange rates, news feeds with pictures, generic JSON, AI text
 - [x] Emulator tests on Android 16 and 17, including live calls to the data services
 
 ## Step 1: first run on a real phone (blocks everything else)
@@ -25,7 +27,7 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 - [x] Edit a widget by AI ("make the text bigger, use blue")
 - [ ] Preview before adding, and a way to change or delete a placed widget's design
 - [x] Real icons instead of emoji stand-ins
-- [ ] Images
+- [x] Images: cover art and feed pictures, cached small
 - [x] The `ask` action (type a value into a widget)
 - [x] An AI edit updates widgets already on the home screen
 - [x] Sources declare their fields; a widget reading a field that does not exist is refused
@@ -36,7 +38,8 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 
 - [x] Stack: one widget holding up to six, flipped by a tap
 - [x] Next alarm and air quality sources
-- [ ] Now-playing and health sources (each behind its own permission)
+- [x] Now-playing (notification access) and steps (Health Connect), each behind its own permission
+- [x] Notes: write on the widget or share text from any app
 - [ ] On-device model (Gemma or Gemini Nano) once measured on the phone
 - [ ] Share a widget as a link or file, with the same checks on import
 
