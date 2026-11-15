@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test builds only: lets the emulator tests write a step record into Health Connect, so the steps
+     widget can be checked against a known number. The release app only reads. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+</manifest>

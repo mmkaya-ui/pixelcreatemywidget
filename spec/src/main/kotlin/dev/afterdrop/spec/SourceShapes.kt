@@ -32,14 +32,14 @@ object SourceShapes {
             "place: \"current\", units: \"metric\" or \"imperial\"", true,
         ),
         "rates" to Kind(obj("rate" to Leaf, "history" to Arr(Leaf), "date" to Leaf), "base and quote (three-letter currency codes), days (1-365)", true),
-        "feed" to Kind(obj("title" to Leaf, "items" to Arr(leaves("title", "link", "published"))), "url (https address of an RSS or Atom feed)", true),
+        "feed" to Kind(obj("title" to Leaf, "items" to Arr(leaves("title", "link", "published", "image"))), "url (https address of an RSS or Atom feed)", true),
         "http" to Kind(Unknown, "url (https address returning JSON; a top-level list is under .items)", true),
-        "ai" to Kind(leaves("text"), "prompt", false),
+        "ai" to Kind(leaves("text"), "prompt (a template; needs the person's Gemini key)", true),
         "air" to Kind(leaves("aqi", "pm25", "pm10"), "place: \"current\"", true),
         "alarm" to Kind(leaves("next"), "none (next is 0 when no alarm is set)", true),
-        "health" to Kind(leaves("today"), "metric: \"steps\"", false),
-        "notes" to Kind(leaves("text"), "note", false),
-        "media" to Kind(leaves("title", "artist", "art"), "none", false),
+        "health" to Kind(obj("today" to Leaf, "week" to Arr(Leaf)), "metric: \"steps\" (week is the last 7 days, oldest first, today last)", true),
+        "notes" to Kind(leaves("text", "updated"), "note (a name; widgets with the same name share one note)", true),
+        "media" to Kind(leaves("title", "artist", "album", "art", "playing", "app"), "none (art is an image for an image node)", true),
     )
 
     /** Field paths of a source, like `now.temp` and `hourly[].rainChance`. */

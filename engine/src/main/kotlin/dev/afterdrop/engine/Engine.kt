@@ -74,7 +74,7 @@ class RNode internal constructor(
     val state: Value?,
     val kids: List<RNode>,
     val tap: Tap?,
-    internal val item: Value?,
+    val item: Value?,
 ) {
     val type: String get() = node.type
     internal fun withKids(kept: List<RNode>): RNode = RNode(node, key, text, fraction, series, instant, state, kept, tap, item)
@@ -90,6 +90,9 @@ object Engine {
     /** Resolves the spec to a tree of visible nodes. Total: bad or missing data never throws. */
     fun resolve(input: RenderInput): RNode =
         Resolver(input).node(input.spec.root, "r", null) ?: RNode(input.spec.root, "r", null, null, null, null, null, emptyList(), null, null)
+
+    /** Fills in a template such as a source parameter, with the same data, variables and calc as the widget. */
+    fun text(input: RenderInput, template: String): String = Resolver(input).render(template, null, false)
 
     /**
      * Applies a control or tap and returns the new variable values, or null when nothing changes.
@@ -164,7 +167,7 @@ private class Resolver(val input: RenderInput) {
         Value.Null
     }
 
-    private fun render(tpl: String, item: Value?, hasItem: Boolean): String = try {
+    fun render(tpl: String, item: Value?, hasItem: Boolean): String = try {
         Evaluator.render(Template.parse(tpl), ctx(item, hasItem))
     } catch (_: FormulaError) {
         ""
@@ -182,6 +185,8 @@ private class Resolver(val input: RenderInput) {
         var kids: List<RNode> = emptyList()
 
         when (n.type) {
+            // The image to draw: a local file path or an https address, read from a source field.
+            "image" -> text = n.text("src")?.removePrefix("source:")?.let { (eval(it, item, hasItem) as? Value.Str)?.v?.takeIf { v -> v.isNotBlank() } }
             "progress" -> {
                 val v = (eval(n.text("value")!!, item, hasItem) as? Value.Num)?.v
                 val min = n.number("min") ?: 0.0

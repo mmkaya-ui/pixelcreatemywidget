@@ -66,6 +66,14 @@ fun main() {
             is Outcome.Failed -> println("LIVE GEMINI: edit FAILED: ${out.reason}")
         }
     }
+    // The free-text mode an AI text widget uses, as the app sends it.
+    Thread.sleep(13_000)
+    val line = Gemini(transport, key, gemini.modelName, json = false)
+        .complete("One short stoic line for a Monday.\n\nAnswer with the text only, in at most 280 characters, without quotation marks or formatting.")
+    when (line) {
+        is Reply.Text -> println("LIVE TEXT: ok, ${line.text.length} chars: ${line.text.take(120)}")
+        is Reply.Failed -> println("LIVE TEXT: FAILED: ${line.reason}")
+    }
     println("LIVE GEMINI: $good of ${asks.size} widgets came straight from the model")
     // A key or billing problem is the account's, not the code's: report it without failing the build.
     if (good == 0) println("LIVE GEMINI: WARNING no widget came from the model; see the reasons above")

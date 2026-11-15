@@ -224,6 +224,8 @@ internal class Lint(private val spec: JObject) {
         str(node, "value")?.let { formula(it, "$path.value", itReads, Type.NUM) }
         str(node, "values")?.let { formula(it, "$path.values", itReads, Type.LIST) }
         str(node, "to")?.let { formula(it, "$path.to", itReads, Type.NUM) }
+        // An image reads a field like any formula, so a wrong field is caught the same way.
+        str(node, "src")?.takeIf { it.startsWith("source:") }?.let { formula(it.removePrefix("source:"), "$path.src", itReads, null) }
         for (key in listOf("text", "label", "empty")) str(node, key)?.let { template(it, "$path.$key", itReads) }
 
         str(node, "id")?.let { if (!ids.add(it)) bad("duplicate_id", "$path.id", "id \"$it\" is used by more than one node") }

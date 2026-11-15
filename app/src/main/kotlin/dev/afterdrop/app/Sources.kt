@@ -15,18 +15,42 @@ import dev.afterdrop.data.NetworkSources
 import dev.afterdrop.data.toJson
 import dev.afterdrop.engine.toValue
 import dev.afterdrop.formula.Value
+import dev.afterdrop.ai.Gemini
+import dev.afterdrop.ai.Reply
+import dev.afterdrop.engine.Engine
+import dev.afterdrop.engine.RenderInput
+import dev.afterdrop.engine.SizeClass
+import dev.afterdrop.engine.Vars
 import dev.afterdrop.spec.JNumber
+import dev.afterdrop.spec.JObject
+import dev.afterdrop.spec.JString
 import dev.afterdrop.spec.Source
+import dev.afterdrop.spec.SpecReader
+import dev.afterdrop.spec.SpecResult
+import dev.afterdrop.spec.Vocabulary
 import dev.afterdrop.spec.WidgetSpec
 import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 
 /**
- * Data for a spec's sources. `battery` and `device` are read on the spot and need no permission.
- * Network sources (weather, rates, feed, http) are read from the cache that [refresh] fills, so
- * drawing a widget never waits on the network. Sources not provided yet read as missing.
+ * Data for a spec's sources. Phone sources (battery, storage, alarm, calendar, steps, now playing,
+ * notes) are read on the spot. Internet sources (weather, air, rates, feed, http, ai) are read from
+ * the cache that [refresh] fills, so drawing a widget never waits on the network.
  */
 object Sources {
-    val AVAILABLE = setOf("battery", "device", "calendar", "alarm") + NetworkSources.KINDS
+    val AVAILABLE = setOf("battery", "device", "calendar", "alarm", "health", "media", "notes", "ai") + NetworkSources.KINDS
+
+    /** The note a notes source shows; widgets naming the same note share it. */
+    fun noteName(source: Source): String = ((source.with["note"] as? JString)?.value ?: "").trim().take(40).ifEmpty { "pinned" }
+
+    /** Shown by an ai source until the person adds a Gemini key. */
+    const val NEEDS_KEY = "Add your Gemini API key in Afterdrop to see this."
+
+    /** Whether any placed widget, on any page, reads a source of this kind. */
+    fun anyPlacedUses(context: Context, use: String): Boolean = Store(context).placedSpecs().any { json ->
+        (SpecReader.read(json) as? SpecResult.Ok)?.spec?.sources?.values?.any { it.use == use } == true
+    }
 
     /** Services the app itself chose. Any other host must be allowed by the person first. */
     val BUILT_IN_HOSTS = setOf("api.open-meteo.com", "air-quality-api.open-meteo.com", "api.frankfurter.dev")
@@ -39,11 +63,13 @@ object Sources {
     fun canReadCalendar(context: Context) =
         context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    fun collect(context: Context, spec: WidgetSpec): Map<String, Value> {
+    /** @param skip kinds of source to leave out. */
+    fun collect(context: Context, spec: WidgetSpec, skip: Set<String> = emptySet()): Map<String, Value> {
         val out = HashMap<String, Value>()
         val store = Store(context)
         val home = store.home
         for ((alias, source) in spec.sources) {
+            if (source.use in skip) continue
             val value = runCatching {
                 when (source.use) {
                     "battery" -> battery(context)
@@ -53,6 +79,13 @@ object Sources {
                     "alarm" -> Value.Obj(mapOf("next" to Value.Num(
                         (context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock?.triggerTime ?: 0L).toDouble()
                     )))
+                    "health" -> Steps.value(context)
+                    "media" -> NowPlaying.value(context)
+                    "notes" -> store.note(noteName(source))?.let { (text, at) ->
+                        Value.Obj(mapOf("text" to Value.Str(text), "updated" to Value.Num(at.toDouble())))
+                    }
+                    "ai" -> if (store.apiKey.isBlank()) Value.Obj(mapOf("text" to Value.Str(NEEDS_KEY)))
+                    else store.cached(NetworkSources.cacheKey(source, home))?.first?.toValue()
                     in NetworkSources.KINDS -> store.cached(NetworkSources.cacheKey(source, home))?.first?.toValue()
                     else -> null
                 }
@@ -73,6 +106,10 @@ object Sources {
         val done = HashSet<String>()
         var updated = 0
         for (spec in specs) for (source in spec.sources.values) {
+            if (source.use == "ai") {
+                if (ai(context, spec, source, force, done)) updated++
+                continue
+            }
             if (source.use !in NetworkSources.KINDS || !allowed(context, source)) continue
             val key = NetworkSources.cacheKey(source, home)
             if (!done.add(key)) continue
@@ -86,6 +123,52 @@ object Sources {
         }
         return updated
     }
+
+    /**
+     * A short text from Gemini with the person's own key, for widgets like a daily line. Asked at most
+     * once an hour (or as the widget's "every" says), and again on a refresh tap. The prompt is filled
+     * in without any private data: the format already refuses calendar, steps, notes or media in it,
+     * and those sources are left out here as well.
+     */
+    private fun ai(context: Context, spec: WidgetSpec, source: Source, force: Boolean, done: HashSet<String>): Boolean {
+        val store = Store(context)
+        val key = store.apiKey
+        if (key.isBlank()) return false
+        val cacheKey = NetworkSources.cacheKey(source, store.home)
+        if (!done.add(cacheKey)) return false
+        val now = System.currentTimeMillis()
+        val every = Math.max(NetworkSources.interval(source), AI_MIN_INTERVAL)
+        val age = store.cached(cacheKey)?.let { now - it.second }
+        if (!force && age != null && age < every) return false
+        val template = (source.with["prompt"] as? JString)?.value ?: return false
+        val zone = ZoneId.systemDefault()
+        val public = collect(context, spec, skip = Vocabulary.PRIVATE_SOURCES + "ai")
+        val input = RenderInput(spec, public, Vars.current(spec, emptyMap(), now, zone), now, zone, Locale.getDefault(), SizeClass.L)
+        val prompt = Engine.text(input, template).trim().take(1000) +
+            "\n\nAnswer with the text only, in at most 280 characters, without quotation marks or formatting."
+        val gemini = Gemini(GeminiTransport, key, store.model, json = false)
+        return when (val reply = runCatching { gemini.complete(prompt) }.getOrNull()) {
+            is Reply.Text -> {
+                val text = reply.text.replace(Regex("\\s+"), " ").trim().trim('"', '\u201C', '\u201D', '*').trim().take(280)
+                if (text.isEmpty()) return false
+                gemini.modelName?.let { store.model = it }
+                store.cache(cacheKey, JObject(mapOf("text" to JString(text))), now)
+                true
+            }
+            else -> {
+                // Say why instead of waiting forever, and try again in half an hour.
+                if (age == null) {
+                    val why = (reply as? Reply.Failed)?.reason ?: "no answer"
+                    store.cache(cacheKey, JObject(mapOf("text" to JString("Gemini did not answer: $why"))), now - every + AI_RETRY)
+                    return true
+                }
+                false
+            }
+        }
+    }
+
+    private const val AI_MIN_INTERVAL = 60 * 60_000L
+    private const val AI_RETRY = 30 * 60_000L
 
     /**
      * Upcoming events, read on the phone from the system calendar. Nothing here is ever sent anywhere:

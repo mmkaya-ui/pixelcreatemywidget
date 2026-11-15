@@ -1,6 +1,7 @@
 package dev.afterdrop.ai
 
 import dev.afterdrop.spec.JArray
+import dev.afterdrop.spec.JNumber
 import dev.afterdrop.spec.JObject
 import dev.afterdrop.spec.JString
 import dev.afterdrop.spec.Json
@@ -136,6 +137,17 @@ private val gemini = suite("gemini") {
         eq("application/json", ((body["generationConfig"] as JObject)["responseMimeType"] as JString).value)
         yes("hello" in seen[1].body!!)
         eq("gemini-3.5-flash", g.modelName)
+    }
+    test("plain text mode asks for free text with more variety") {
+        val seen = ArrayList<HttpRequest>()
+        val g = Gemini({ r ->
+            seen += r
+            if (r.method == "GET") HttpResponse(200, models("gemini-3.5-flash")) else HttpResponse(200, answer("Breathe, then begin."))
+        }, "k", json = false)
+        eq("Breathe, then begin.", (g.complete("one line") as Reply.Text).text)
+        val config = (Json.parse(seen[1].body!!) as JObject)["generationConfig"] as JObject
+        eq(null, config["responseMimeType"])
+        eq(1.0, (config["temperature"] as JNumber).value)
     }
     test("a model that needs paid credits is skipped for the next free one, and the choice sticks") {
         eq(listOf("gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash-lite"),

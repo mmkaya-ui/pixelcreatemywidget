@@ -23,6 +23,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dev.afterdrop.app.HttpsFetcher
+import dev.afterdrop.app.Images
 import dev.afterdrop.app.Sources
 import dev.afterdrop.app.Store
 import dev.afterdrop.engine.Engine
@@ -173,6 +174,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val specs = manager.getGlanceIds(AfterdropWidget::class.java)
             .flatMap { AfterdropWidget.readAllSpecs(context, manager.getAppWidgetId(it)) }
         runCatching { Sources.refresh(context, specs, HttpsFetcher, inputData.getBoolean("force", false)) }
+        runCatching { Images.prefetch(context, specs) }
         AfterdropWidget.refreshAll(context)
         return Result.success()
     }

@@ -126,6 +126,23 @@ private val feeds = suite("feeds") {
         eq(Value.Str("https://example.org/hello"), at(v, "d.items[0].link"))
         eq(n(1794472200000L), at(v, "d.items[0].published"))
     }
+    test("pictures from media tags, enclosures and Atom links; https only") {
+        val rss = """<rss xmlns:media="http://search.yahoo.com/mrss/"><channel><title>N</title>
+          <item><title>A</title><media:thumbnail url="https://img.example.org/a.jpg" width="120"/></item>
+          <item><title>B</title><media:content url="https://img.example.org/b.mp4" type="video/mp4"/><media:content url="https://img.example.org/b.png" medium="image"/></item>
+          <item><title>C</title><enclosure url="https://img.example.org/c.webp" type="image/webp" length="1"/></item>
+          <item><title>D</title><enclosure url="http://img.example.org/d.jpg" type="image/jpeg"/></item>
+          <item><title>E</title></item></channel></rss>"""
+        val v = NetworkSources.parseFeed(rss)
+        eq(Value.Str("https://img.example.org/a.jpg"), at(v, "d.items[0].image"))
+        eq(Value.Str("https://img.example.org/b.png"), at(v, "d.items[1].image"))
+        eq(Value.Str("https://img.example.org/c.webp"), at(v, "d.items[2].image"))
+        eq(Value.Null, at(v, "d.items[3].image"))
+        eq(Value.Null, at(v, "d.items[4].image"))
+        val atom = """<feed xmlns="http://www.w3.org/2005/Atom"><title>B</title><entry><title>H</title>
+          <link href="https://example.org/h"/><link rel="enclosure" type="image/jpeg" href="https://example.org/h.jpg"/></entry></feed>"""
+        eq(Value.Str("https://example.org/h.jpg"), at(NetworkSources.parseFeed(atom), "d.items[0].image"))
+    }
     test("at most 20 items") {
         val many = "<rss><channel>" + (1..50).joinToString("") { "<item><title>T$it</title></item>" } + "</channel></rss>"
         eq(n(20), at(NetworkSources.parseFeed(many), "count(d.items)"))
@@ -143,7 +160,7 @@ private val general = suite("requests") {
     test("hosts shown to the person") {
         eq("api.open-meteo.com", NetworkSources.host(spec("ride-check").sources.getValue("wx")))
         eq("api.frankfurter.dev", NetworkSources.host(spec("rates").sources.getValue("fx")))
-        eq("example.org", NetworkSources.host(spec("headlines").sources.getValue("news")))
+        eq("feeds.bbci.co.uk", NetworkSources.host(spec("headlines").sources.getValue("news")))
         eq(null, NetworkSources.host(spec("battery").sources.getValue("bat")))
         eq("a.example", NetworkSources.hostOf("https://A.example:8443/x?y"))
         eq(null, NetworkSources.hostOf("http://a.example/"))

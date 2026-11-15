@@ -28,8 +28,10 @@ import dev.afterdrop.spec.Json
 import dev.afterdrop.spec.SpecResult
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -308,6 +310,189 @@ class WidgetHostTest {
         // The emulator's calendar is empty, so the same text must come from a real, successful query.
         waitFor(q, "the empty list with permission") { "Nothing scheduled" in it }
         remove(q)
+    }
+
+    private fun online() = HttpsFetcher.get("https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m") != null
+
+    private fun waitUntil(what: String, seconds: Int = 20, test: () -> Boolean) {
+        val end = System.currentTimeMillis() + seconds * 1000
+        while (System.currentTimeMillis() < end) {
+            if (test()) return
+            Thread.sleep(250)
+        }
+        fail("timed out waiting for $what")
+    }
+
+    /** Pictures the widget really drew (a bitmap, not the empty tile), by their description. */
+    private fun pictures(root: View, description: String): Int {
+        var count = 0
+        inst.runOnMainSync {
+            fun walk(v: View) {
+                if (v.visibility != View.VISIBLE) return
+                if (v is ImageView && v.contentDescription?.toString() == description && v.drawable != null && v.width > 0 && v.height > 0) count++
+                if (v is ViewGroup) for (i in 0 until v.childCount) walk(v.getChildAt(i))
+            }
+            walk(root)
+        }
+        return count
+    }
+
+    @Test
+    fun noteWidgetShowsTheNote() {
+        val store = Store(context)
+        store.saveNote("pinned", "Buy flowers")
+        val p = place(asset("sticky-note"), 180, 180)
+        waitFor(p, "the note") { "Buy flowers" in it }
+        store.saveNote("pinned", "")
+        runBlocking { AfterdropWidget.refresh(context, GlanceAppWidgetManager(context).getGlanceIdBy(p.id)) }
+        waitFor(p, "the empty note prompt") { "Tap to write" in it }
+        remove(p)
+    }
+
+    /**
+     * A real media session, as a music app makes one. Afterdrop sees it through notification access,
+     * draws the song and its cover, and redraws by itself when the music stops.
+     */
+    @Test
+    fun nowPlayingFollowsARealMediaSession() {
+        val component = "${context.packageName}/${NowPlayingListener::class.java.name}"
+        shell("cmd notification allow_listener $component")
+        waitUntil("notification access") { NowPlaying.allowed(context) }
+        lateinit var session: android.media.session.MediaSession
+        inst.runOnMainSync {
+            session = android.media.session.MediaSession(context, "AfterdropTest")
+            val art = android.graphics.Bitmap.createBitmap(300, 300, android.graphics.Bitmap.Config.ARGB_8888)
+            android.graphics.Canvas(art).drawColor(0xFFE0457B.toInt())
+            session.setMetadata(
+                android.media.MediaMetadata.Builder()
+                    .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, "Afterdrop Test Song")
+                    .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Test Artist")
+                    .putString(android.media.MediaMetadata.METADATA_KEY_ALBUM, "Test Album")
+                    .putBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART, art)
+                    .build()
+            )
+            session.setPlaybackState(
+                android.media.session.PlaybackState.Builder()
+                    .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
+                    .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE)
+                    .build()
+            )
+            session.isActive = true
+        }
+        try {
+            waitUntil("the session to be seen") { NowPlaying.current(context)?.title == "Afterdrop Test Song" }
+            val track = NowPlaying.current(context)!!
+            Log.i(TAG, "now playing: ${track.title} / ${track.artist} / ${track.album} playing=${track.playing} art=${track.art}")
+            assertTrue("not reported as playing", track.playing)
+            assertTrue("cover art was not saved", track.art?.isFile == true)
+            val p = place(asset("now-playing"), 330, 80)
+            waitFor(p, "the song") { "Afterdrop Test Song" in it && "Test Artist" in it }
+            waitUntil("the cover to be drawn") { pictures(p.view, "Cover art") == 1 }
+            Shots.log("now-playing")
+            // Paused music still shows; the widget follows without being told.
+            inst.runOnMainSync {
+                session.setPlaybackState(
+                    android.media.session.PlaybackState.Builder().setState(android.media.session.PlaybackState.STATE_PAUSED, 0, 0f).build()
+                )
+            }
+            waitUntil("pause to be seen") { NowPlaying.current(context)?.playing == false }
+            inst.runOnMainSync { session.release() }
+            waitFor(p, "the widget to notice the music stopped", 30) { "Nothing playing" in it }
+            remove(p)
+        } finally {
+            inst.runOnMainSync { runCatching { session.release() } }
+            shell("cmd notification disallow_listener $component")
+        }
+    }
+
+    /** A step record written into Health Connect shows up in the steps widget, today and in the week. */
+    @Test
+    fun stepsComeFromHealthConnect() {
+        assertTrue("Health Connect is missing on this emulator", Steps.available(context))
+        for (perm in listOf(Steps.READ, "android.permission.health.WRITE_STEPS", Steps.BACKGROUND)) {
+            Log.i(TAG, "grant $perm: " + shell("pm grant ${context.packageName} $perm").trim())
+        }
+        assertTrue("step access was not granted", Steps.granted(context))
+        val hc = context.getSystemService(android.health.connect.HealthConnectManager::class.java)!!
+        val zone = java.time.ZoneId.systemDefault()
+        val now = java.time.Instant.now()
+        val today = java.time.LocalDate.now(zone)
+        // Start clean: remove this app's own step records from the last week.
+        Steps.await<Void?> { cb ->
+            hc.deleteRecords(
+                android.health.connect.datatypes.StepsRecord::class.java,
+                android.health.connect.TimeInstantRangeFilter.Builder().setStartTime(today.minusDays(8).atStartOfDay(zone).toInstant()).setEndTime(now).build(),
+                Steps.direct, cb,
+            )
+        }
+        fun record(start: java.time.Instant, end: java.time.Instant, count: Long) =
+            android.health.connect.datatypes.StepsRecord.Builder(
+                android.health.connect.datatypes.Metadata.Builder()
+                    .setRecordingMethod(android.health.connect.datatypes.Metadata.RECORDING_METHOD_MANUAL_ENTRY).build(),
+                start, end, count,
+            ).build()
+        val start = maxOf(today.atStartOfDay(zone).toInstant().plusSeconds(1), now.minusSeconds(1800))
+        val yesterdayNoon = today.minusDays(1).atTime(12, 0).atZone(zone).toInstant()
+        val inserted = Steps.await<android.health.connect.InsertRecordsResponse> { cb ->
+            hc.insertRecords(listOf(record(start, now.minusSeconds(5), 4321), record(yesterdayNoon, yesterdayNoon.plusSeconds(1800), 2000)), Steps.direct, cb)
+        }
+        assertTrue("Health Connect did not take the test records", inserted?.records?.size == 2)
+        val v = Steps.value(context) as dev.afterdrop.formula.Value.Obj
+        Log.i(TAG, "steps value: $v")
+        val todaySteps = (v.fields["today"] as dev.afterdrop.formula.Value.Num).v
+        val week = (v.fields["week"] as dev.afterdrop.formula.Value.ListV).items.map { (it as dev.afterdrop.formula.Value.Num).v }
+        assertTrue("today shows $todaySteps, expected at least 4321", todaySteps >= 4321)
+        assertEquals("the week must have seven days", 7, week.size)
+        assertEquals("the last day of the week is today", todaySteps, week[6], 0.0)
+        assertTrue("yesterday shows ${week[5]}, expected at least 2000", week[5] >= 2000)
+        val p = place(asset("steps"), 180, 180)
+        waitFor(p, "the step count") { t -> t.any { Regex("4[,.\u202F\u00A0 ]?3\\d\\d").matches(it) } }
+        Shots.log("steps")
+        remove(p)
+    }
+
+    /** A real feed with pictures: the stories show, and so do their thumbnails. */
+    @Test
+    fun feedStoriesShowTheirPictures() {
+        assumeTrue("no internet on this emulator", online())
+        Store(context).approveHost("feeds.bbci.co.uk")
+        val s = (dev.afterdrop.spec.SpecReader.read(asset("headlines")) as dev.afterdrop.spec.SpecResult.Ok).spec
+        val updated = Sources.refresh(context, listOf(s), HttpsFetcher, force = true)
+        assumeTrue("the feed is unreachable from this emulator", updated == 1)
+        val ready = Images.prefetch(context, listOf(s))
+        Log.i(TAG, "feed pictures ready: $ready")
+        assertTrue("no story picture was downloaded", ready > 0)
+        val p = place(asset("headlines"), 330, 250)
+        val shown = waitFor(p, "stories") { it.size > 3 }
+        Log.i(TAG, "headlines show $shown")
+        waitUntil("story pictures to be drawn") { pictures(p.view, "Picture") > 0 }
+        Shots.log("headlines")
+        remove(p)
+    }
+
+    /** Without a key the AI text widget says what it needs; with a key Google refuses, it says why. */
+    @Test
+    fun aiTextSaysWhatItNeeds() {
+        val store = Store(context)
+        val keep = store.apiKey
+        try {
+            store.apiKey = ""
+            val p = place(asset("daily-quote"), 330, 180)
+            waitFor(p, "the key message") { Sources.NEEDS_KEY in it }
+            remove(p)
+            if (online()) {
+                store.apiKey = "not-a-real-key"
+                store.model = null
+                val s = (dev.afterdrop.spec.SpecReader.read(asset("daily-quote")) as dev.afterdrop.spec.SpecResult.Ok).spec
+                Sources.refresh(context, listOf(s), HttpsFetcher, force = true)
+                val q = place(asset("daily-quote"), 330, 180)
+                val shown = waitFor(q, "the refusal") { t -> t.any { it.startsWith("Gemini did not answer: the Gemini API refused the key") } }
+                Log.i(TAG, "ai with a bad key shows $shown")
+                remove(q)
+            }
+        } finally {
+            store.apiKey = keep
+        }
     }
 
     @Test

@@ -35,6 +35,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,7 +65,11 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 /** One gallery entry: a spec that is known to be valid. */
-class Entry(val name: String, val about: String, val json: String, val missing: List<String>, val mine: Boolean, val cols: Int, val rows: Int, val hosts: List<String>, val needsPlace: Boolean, val needsCalendar: Boolean)
+class Entry(
+    val name: String, val about: String, val json: String, val missing: List<String>, val mine: Boolean, val cols: Int, val rows: Int,
+    val hosts: List<String>, val needsPlace: Boolean, val needsCalendar: Boolean,
+    val uses: Set<String> = emptySet(),
+)
 
 class MainActivity : ComponentActivity() {
     private var bindId = AppWidgetManager.INVALID_APPWIDGET_ID
@@ -72,6 +77,25 @@ class MainActivity : ComponentActivity() {
     private val askCalendar = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
         onCalendarAnswer(granted)
         if (granted) lifecycleScope.launch { runCatching { AfterdropWidget.refreshAll(this@MainActivity) } }
+    }
+
+    /** Health Connect shows its own screen for this request, listing exactly what is asked for. */
+    private val askSteps = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
+        checks++
+        lifecycleScope.launch { runCatching { AfterdropWidget.refreshAll(this@MainActivity) } }
+    }
+
+    /** Counts returns to the app, so permission states are read again after a visit to Settings. */
+    private var checks by mutableIntStateOf(0)
+    private var granted: List<Boolean> = emptyList()
+
+    override fun onResume() {
+        super.onResume()
+        checks++
+        // Access turned on in Settings shows on the home screen at once.
+        val now = listOf(NowPlaying.allowed(this), Steps.granted(this), Steps.backgroundGranted(this))
+        if (granted.isNotEmpty() && now != granted) lifecycleScope.launch { runCatching { AfterdropWidget.refreshAll(this@MainActivity) } }
+        granted = now
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,7 +120,8 @@ class MainActivity : ComponentActivity() {
         val spec = (SpecReader.read(json) as? SpecResult.Ok)?.spec ?: return null
         val missing = spec.sources.values.map { it.use }.filter { it !in Sources.AVAILABLE }.distinct()
         val hosts = spec.sources.values.mapNotNull { NetworkSources.host(it) }.distinct()
-        return Entry(spec.name, spec.about, json, missing, mine, spec.cols, spec.rows, hosts, spec.sources.values.any { it.use == "weather" || it.use == "air" }, spec.sources.values.any { it.use == "calendar" })
+        val uses = spec.sources.values.map { it.use }.toSet()
+        return Entry(spec.name, spec.about, json, missing, mine, spec.cols, spec.rows, hosts, "weather" in uses || "air" in uses, "calendar" in uses, uses)
     }
 
     private fun entries(): List<Entry> {
@@ -156,6 +181,9 @@ class MainActivity : ComponentActivity() {
         var stackNames by remember { mutableStateOf(Store(this@MainActivity).pages(bindId).map { Store(this@MainActivity).nameOf(it) }) }
         var calendarOk by remember { mutableStateOf(Sources.canReadCalendar(this@MainActivity)) }
         onCalendarAnswer = { calendarOk = it }
+        val stepsOk = remember(checks) { Steps.granted(this@MainActivity) }
+        val stepsBackgroundOk = remember(checks) { Steps.backgroundGranted(this@MainActivity) }
+        val mediaOk = remember(checks) { NowPlaying.allowed(this@MainActivity) }
         Scaffold(Modifier.fillMaxSize().imePadding()) { inner ->
             LazyColumn(
                 contentPadding = PaddingValues(
@@ -171,6 +199,7 @@ class MainActivity : ComponentActivity() {
                         else "Pick a widget to add to your home screen, or paste a widget description below.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    TextButton(onClick = { startActivity(Intent(this@MainActivity, PrivacyActivity::class.java)) }) { Text("Privacy: what Afterdrop reads") }
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -282,6 +311,38 @@ class MainActivity : ComponentActivity() {
                             if (e.needsCalendar && !calendarOk) {
                                 Text("Your calendar is read on the phone and never sent anywhere.", style = MaterialTheme.typography.bodySmall)
                                 TextButton(onClick = { askCalendar.launch(android.Manifest.permission.READ_CALENDAR) }) { Text("Allow calendar access") }
+                            }
+                            if ("health" in e.uses) {
+                                when {
+                                    !Steps.available(this@MainActivity) ->
+                                        Text("Health Connect is not available on this phone, so steps cannot be shown.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                    !stepsOk -> {
+                                        Text("Steps come from Health Connect on this phone and are never sent anywhere.", style = MaterialTheme.typography.bodySmall)
+                                        TextButton(onClick = { askSteps.launch(Steps.PERMISSIONS) }) { Text("Allow step access") }
+                                    }
+                                    !stepsBackgroundOk -> {
+                                        Text("Also allow \"Access data in the background\" for Afterdrop in Health Connect, so the widget keeps updating while Afterdrop is closed.", style = MaterialTheme.typography.bodySmall)
+                                        TextButton(onClick = { askSteps.launch(Steps.PERMISSIONS) }) { Text("Allow background access") }
+                                    }
+                                }
+                            }
+                            if ("media" in e.uses && !mediaOk) {
+                                Text(
+                                    "To show what is playing, turn on notification access for Afterdrop. It only asks Android which song is playing; your notifications are not read or kept.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                TextButton(onClick = { runCatching { startActivity(NowPlaying.settingsIntent(this@MainActivity)) } }) { Text("Allow notification access") }
+                                Text(
+                                    "If Android says \"Restricted setting\": open App info, tap \u22EE at the top right, choose \"Allow restricted settings\", then try again.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                TextButton(onClick = { runCatching { startActivity(NowPlaying.appInfoIntent(this@MainActivity)) } }) { Text("Open App info") }
+                            }
+                            if ("ai" in e.uses && key.isBlank()) {
+                                Text("Writes its text with Gemini: add your Gemini API key above.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
+                            if ("notes" in e.uses) {
+                                Text("Tap the widget to write. You can also share text from any app to Afterdrop.", style = MaterialTheme.typography.bodySmall)
                             }
                             if (e.needsPlace && place == null) {
                                 Text("Set your city below to see weather and air quality.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)

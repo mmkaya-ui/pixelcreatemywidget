@@ -1,7 +1,7 @@
 {
   "v": 1,
   "name": "Morning",
-  "about": "Next alarm, storage and a link",
+  "about": "Next alarm, free storage, and quick ways to your alarms and maps",
   "size": { "cols": 4, "rows": 2 },
   "sources": { "al": { "use": "alarm" }, "dev": { "use": "device" } },
   "root": {
@@ -14,9 +14,8 @@
       { "t": "divider", "color": "outline" },
       { "t": "row", "gap": 8, "cross": "center", "kids": [
         { "t": "text", "text": "{num(dev.storageFreeGb, 0)} GB free", "style": "body", "grow": 1 },
-        { "t": "button", "label": "Timetable", "kind": "plain",
-          "tap": { "do": "open_url", "url": "https://example.org/timetable" } },
-        { "t": "button", "label": "Maps", "kind": "plain", "tap": { "do": "open_app", "pkg": "com.example.maps" } }
+        { "t": "button", "label": "Alarms", "kind": "plain", "tap": { "do": "open_source", "source": "al" } },
+        { "t": "button", "label": "Maps", "kind": "plain", "tap": { "do": "open_app", "pkg": "com.google.android.apps.maps" } }
       ] }
     ]
   }

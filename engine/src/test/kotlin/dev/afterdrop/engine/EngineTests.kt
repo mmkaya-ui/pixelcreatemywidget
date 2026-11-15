@@ -42,6 +42,19 @@ private val resolving = suite("resolve") {
         eq(listOf(10.0, 60.0, 35.0), r.all().first { it.type == "chart" }.series)
         eq(Tap.OpenSource("wx", "weather"), r.tap)
     }
+    test("an image takes its address from the source, and draws nothing without one") {
+        val s = spec("now-playing")
+        val playing = Engine.resolve(input(s, data("""{"np":{"title":"Song","artist":"Band","art":"/data/art/1.png","playing":true}}""")))
+        eq("/data/art/1.png", playing.all().first { it.type == "image" }.text)
+        eq(listOf("/data/art/1.png", "Song", "Band"), texts(playing))
+        val idle = Engine.resolve(input(s))
+        eq(null, idle.all().first { it.type == "image" }.text)
+        eq(listOf("Nothing playing"), texts(idle))
+        eq(Tap.OpenSource("np", "media"), idle.tap)
+    }
+    test("a template outside a node uses the same data and functions") {
+        eq("One short line for 2026-11-11", Engine.text(input(spec("daily-quote")), "One short line for {fmt(today(), 'yyyy-MM-dd')}"))
+    }
     test("missing data shows dashes and never throws") {
         val r = Engine.resolve(input(spec("ride-check")))
         eq(listOf("– km/h", "gusts –", "–% rain by –", "Maybe not today"), texts(r))
@@ -147,7 +160,7 @@ private val acting = suite("actions") {
     test("ask and link taps are described, not performed") {
         eq(Tap.Ask("kg", "Weight in kg", true), Engine.resolve(input(spec("weight-log"))).tap)
         val taps = Engine.resolve(input(spec("morning-dashboard"))).all().mapNotNull { it.tap }.toList()
-        eq(listOf(Tap.OpenUrl("https://example.org/timetable"), Tap.OpenApp("com.example.maps")), taps)
+        eq(listOf(Tap.OpenSource("al", "alarm"), Tap.OpenApp("com.google.android.apps.maps")), taps)
     }
 }
 
@@ -226,7 +239,7 @@ private val fitting = suite("fit") {
         eq(listOf("row", "toggle"), types(fit("focus-toggle", 110, width = 150)))
         eq(listOf("row", "text", "toggle"), types(fit("focus-toggle", 110, width = 330)))
         val dash = fit("morning-dashboard", 250, width = 150).root.all().filter { it.type == "button" }.mapNotNull { it.text }.toList()
-        eq(listOf("Timetable"), dash)
+        eq(listOf("Alarms"), dash)
         eq(2, fit("morning-dashboard", 250, width = 330).root.all().count { it.type == "button" })
     }
     test("a larger system font drops more") {

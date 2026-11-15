@@ -69,7 +69,7 @@ object Vocabulary {
 private val IDENT = Regex("[a-z][a-zA-Z0-9]{0,23}")
 private val HEX = Regex("#[0-9a-fA-F]{6}")
 private val ICON = Regex("[a-z][a-z0-9_]{0,39}")
-private val SRC = Regex("(asset|source):[A-Za-z0-9_./-]{1,80}")
+private val SRC = Regex("source:[A-Za-z][A-Za-z0-9_]{0,23}(\\.[A-Za-z0-9_]{1,40}|\\[[0-9]{1,2}\\]){1,6}")
 private val PKG = Regex("[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+")
 
 /** Structural validation: the hand-written equivalent of the JSON Schema, with stable problem codes. */
@@ -273,7 +273,7 @@ internal class SchemaCheck {
             "bold" -> if (v !is JBool) bad("type", p, "must be true or false")
             "icon" -> pattern(v, p, ICON, "an icon name like \"rainy\"")
             "iconSize" -> integer(v, p, 12, 64)
-            "src" -> pattern(v, p, SRC, "\"asset:<name>\" or \"source:<alias.field>\"")
+            "src" -> pattern(v, p, SRC, "\"source:<alias.field>\", a source field holding an image")
             "fit" -> choice(v, p, setOf("cover", "contain"))
             "shape" -> choice(v, p, setOf("bar", "ring"))
             "kind" -> choice(v, p, setOf("spark", "bars", "filled", "tonal", "plain"))

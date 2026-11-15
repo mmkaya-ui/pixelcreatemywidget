@@ -239,10 +239,33 @@ object NetworkSources {
                     "title" to Value.Str(title),
                     "link" to (link?.takeIf { it.startsWith("https://") }?.let { Value.Str(it.take(500)) } ?: Value.Null),
                     "published" to (published?.let { Value.Num(it.toDouble()) } ?: Value.Null),
+                    "image" to (feedImage(e)?.let { Value.Str(it) } ?: Value.Null),
                 )
             )
         }
         return Value.Obj(mapOf("title" to (textOf(channel, "title")?.let { Value.Str(it) } ?: Value.Null), "items" to Value.ListV(items)))
+    }
+
+    /**
+     * The picture a feed entry offers, from the common ways feeds attach one: media:thumbnail,
+     * media:content with an image type, an image enclosure, or an Atom enclosure link. https only.
+     */
+    private fun feedImage(entry: Element): String? {
+        val all = entry.getElementsByTagName("*")
+        for (i in 0 until all.length) {
+            val el = all.item(i) as? Element ?: continue
+            val name = el.tagName.substringAfter(':')
+            val type = el.getAttribute("type")
+            val url = when {
+                name == "thumbnail" -> el.getAttribute("url")
+                name == "content" && el.hasAttribute("url") && (el.getAttribute("medium") == "image" || type.startsWith("image/")) -> el.getAttribute("url")
+                name == "enclosure" && type.startsWith("image/") -> el.getAttribute("url")
+                name == "link" && el.getAttribute("rel") == "enclosure" && type.startsWith("image/") -> el.getAttribute("href")
+                else -> null
+            }?.trim()
+            if (url != null && url.startsWith("https://") && url.length <= 500) return url
+        }
+        return null
     }
 
     private fun time(s: String?): Long? {

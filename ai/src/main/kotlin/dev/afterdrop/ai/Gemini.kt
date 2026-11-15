@@ -19,7 +19,16 @@ fun interface Transport {
  * The Gemini API with the person's own key, over plain REST: no SDK, no Google Play services.
  * The key travels only in the x-goog-api-key header to generativelanguage.googleapis.com.
  */
-class Gemini(private val transport: Transport, private val apiKey: String, private var model: String? = null) : TextModel {
+/**
+ * @param json ask for a JSON answer (widget writing). Off for free text, such as a widget's daily line,
+ *   which is also asked with more variety so "Another" gives a different answer.
+ */
+class Gemini(
+    private val transport: Transport,
+    private val apiKey: String,
+    private var model: String? = null,
+    private val json: Boolean = true,
+) : TextModel {
 
     /** The model in use, chosen from the account's model list on first use when none was given. */
     val modelName: String? get() = model
@@ -60,8 +69,8 @@ class Gemini(private val transport: Transport, private val apiKey: String, priva
     private fun ask(name: String, prompt: String): Reply {
         fun body(light: Boolean): String {
             val config = LinkedHashMap<String, dev.afterdrop.spec.JsonValue>()
-            config["responseMimeType"] = JString("application/json")
-            config["temperature"] = JNumber(0.4)
+            if (json) config["responseMimeType"] = JString("application/json")
+            config["temperature"] = JNumber(if (json) 0.4 else 1.0)
             // A widget needs no long deliberation; without this some models think for over a minute.
             if (light) config["thinkingConfig"] = JObject(mapOf("thinkingLevel" to JString("low")))
             return Json.write(

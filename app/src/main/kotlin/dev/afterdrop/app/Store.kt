@@ -109,11 +109,33 @@ class Store(context: Context) {
         return changed
     }
 
+    /** Every page of every placed widget, for work that concerns all of them. */
+    fun placedSpecs(): List<String> =
+        prefs.all.keys.filter { it.startsWith("stack.") }.mapNotNull { it.removePrefix("stack.").toIntOrNull() }.flatMap { pages(it) }
+
+    /** A note the person wrote, by name, with when it was last saved. Kept on the phone only. */
+    fun note(name: String): Pair<String, Long>? {
+        val text = prefs.getString("note.$name", null) ?: return null
+        return text to prefs.getLong("noteAt.$name", 0L)
+    }
+
+    fun saveNote(name: String, text: String) {
+        val clean = text.take(MAX_NOTE)
+        prefs.edit().apply {
+            if (clean.isBlank()) remove("note.$name").remove("noteAt.$name")
+            else putString("note.$name", clean).putLong("noteAt.$name", System.currentTimeMillis())
+        }.commit()
+    }
+
     /** Internet hosts the person has allowed for feed and JSON widgets. The built-in services need no approval. */
     fun approvedHosts(): Set<String> = prefs.getStringSet("hosts", emptySet()) ?: emptySet()
 
     fun approveHost(host: String) {
         prefs.edit().putStringSet("hosts", approvedHosts() + host).commit()
+    }
+
+    fun forgetHost(host: String) {
+        prefs.edit().putStringSet("hosts", approvedHosts() - host).commit()
     }
 
     /** The spec chosen in the app and waiting for the launcher to create its widget. */
@@ -210,5 +232,6 @@ class Store(context: Context) {
         private const val PENDING_TTL = 2 * 60_000L
         const val MAX_USER_SPECS = 50
         const val MAX_PAGES = 6
+        const val MAX_NOTE = 2000
     }
 }

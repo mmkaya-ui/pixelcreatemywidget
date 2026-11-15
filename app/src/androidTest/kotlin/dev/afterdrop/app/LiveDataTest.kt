@@ -92,12 +92,13 @@ class LiveDataTest {
 
     @Test
     fun aHostIsNotContactedUntilItIsAllowed() {
-        val s = spec("headlines") // its feed lives on example.org
+        val s = spec("headlines") // its feed is on feeds.bbci.co.uk, which is not built in
+        Store(context).forgetHost("feeds.bbci.co.uk")
         var calls = 0
         val counting = dev.afterdrop.data.Fetcher { calls++; null }
         Sources.refresh(context, listOf(s), counting, force = true)
         assertTrue("an unapproved host was contacted", calls == 0)
-        Store(context).approveHost("example.org")
+        Store(context).approveHost("feeds.bbci.co.uk")
         Sources.refresh(context, listOf(s), counting, force = true)
         assertTrue("an approved host was not contacted", calls == 1)
     }

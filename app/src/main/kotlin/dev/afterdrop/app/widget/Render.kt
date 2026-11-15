@@ -57,7 +57,12 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import dev.afterdrop.app.AskActivity
+import dev.afterdrop.app.Images
 import dev.afterdrop.app.MainActivity
+import dev.afterdrop.app.NoteActivity
+import dev.afterdrop.app.NowPlaying
+import dev.afterdrop.app.Sources
+import dev.afterdrop.app.Steps
 import dev.afterdrop.app.R
 import dev.afterdrop.app.Store
 import dev.afterdrop.engine.Engine
@@ -87,7 +92,12 @@ class Env(
     val maxWidth: Float = 10_000f,
     /** The tallest any one node may be, in dp. In a very short widget a button shrinks to this instead of being cut. */
     val maxHeight: Float = 10_000f,
+    /** The spec's sources by name, for taps and pictures that depend on what a source is. */
+    val sources: Map<String, dev.afterdrop.spec.Source> = emptyMap(),
 ) {
+    /** The note an "edit" tap writes: the widget's first notes source, if it has one. */
+    val note: String? get() = sources.values.firstOrNull { it.use == "notes" }?.let { Sources.noteName(it) }
+
     val buttonHeight: Float get() = Math.min(Fit.BUTTON.toFloat(), maxHeight)
     val controlHeight: Float get() = Math.min(Fit.CONTROL.toFloat(), maxHeight)
 }
@@ -131,7 +141,7 @@ fun WidgetContent(appWidgetId: Int) {
             runCatching { custom[role] = Color(android.graphics.Color.parseColor((hex as JString).value)) }
         }
     }
-    val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f), Math.max(height - 2f * MIN_EDGE_DP, 24f))
+    val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f), Math.max(height - 2f * MIN_EDGE_DP, 24f), spec.sources)
     if (pageCount > 1) {
         Column(frame) {
             Box(GlanceModifier.defaultWeight().fillMaxWidth()) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
@@ -197,18 +207,61 @@ private fun tapAction(n: RNode, env: Env): Action? = when (val t = n.tap) {
     null -> null
     is Tap.OpenUrl -> actionStartActivity(Intent(Intent.ACTION_VIEW, Uri.parse(t.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     is Tap.OpenApp -> env.context.packageManager.getLaunchIntentForPackage(t.pkg)?.let { actionStartActivity(it) }
-    is Tap.OpenSource -> actionStartActivity(
-        when (t.use) {
-            "calendar" -> Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/${env.nowMillis}"))
-            "alarm" -> Intent(AlarmClock.ACTION_SHOW_ALARMS)
-            "battery" -> Intent(Intent.ACTION_POWER_USAGE_SUMMARY)
-            else -> MainActivity.bindIntent(env.context, env.appWidgetId)
-        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    )
+    is Tap.OpenSource -> actionStartActivity(openSource(t, n, env).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     is Tap.Ask -> actionStartActivity(AskActivity.intent(env.context, env.appWidgetId, t.variable, t.title))
-    Tap.Edit -> actionStartActivity(MainActivity.bindIntent(env.context, env.appWidgetId))
+    Tap.Edit -> actionStartActivity(env.note?.let { NoteActivity.intent(env.context, it) } ?: MainActivity.bindIntent(env.context, env.appWidgetId))
     Tap.Refresh -> run(n.key, "refresh")
     Tap.SetVar -> run(n.key, "tap")
+}
+
+/**
+ * Where tapping a source leads: the app the data comes from where there is one. When a permission is
+ * still missing, Afterdrop itself opens, where the widget's card offers to allow it.
+ */
+private fun openSource(t: Tap.OpenSource, n: RNode, env: Env): Intent {
+    val ctx = env.context
+    val setup = MainActivity.bindIntent(ctx, env.appWidgetId)
+    return when (t.use) {
+        "calendar" -> Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/${env.nowMillis}"))
+        "alarm" -> Intent(AlarmClock.ACTION_SHOW_ALARMS)
+        "battery" -> Intent(Intent.ACTION_POWER_USAGE_SUMMARY)
+        "media" -> NowPlaying.launchIntent(ctx) ?: setup
+        "health" -> if (Steps.granted(ctx)) Steps.settingsIntent() else setup
+        "notes" -> env.sources[t.source]?.let { NoteActivity.intent(ctx, Sources.noteName(it)) } ?: setup
+        // A story in a feed list opens the story itself.
+        "feed" -> ((n.item as? Value.Obj)?.fields?.get("link") as? Value.Str)?.v?.takeIf { it.startsWith("https://") }
+            ?.let { Intent(Intent.ACTION_VIEW, Uri.parse(it)) } ?: setup
+        else -> setup
+    }
+}
+
+/**
+ * A picture from a source: cover art, or a downloaded thumbnail. Until there is one, a quiet tile of
+ * the same size keeps the layout steady.
+ */
+@Composable
+private fun Picture(n: RNode, mod: GlanceModifier, env: Env) {
+    val node = n.node
+    val alias = node.text("src")?.removePrefix("source:")?.substringBefore('.')?.substringBefore('[')
+    val media = env.sources[alias]?.use == "media"
+    val sized = node.has("w") || node.has("h") || (node.int("grow") ?: 0) > 0
+    val m = if (sized) mod else mod.size(48.dp)
+    val sideDp = Math.max(node.int("w") ?: 0, node.int("h") ?: 0).takeIf { it > 0 } ?: 120
+    val px = Math.min(Images.MAX_PX, (sideDp * env.context.resources.displayMetrics.density).toInt())
+    val bitmap = n.text?.let { Images.load(env.context, it, px) }
+    if (bitmap != null) {
+        Image(
+            provider = ImageProvider(bitmap), contentDescription = if (media) "Cover art" else "Picture", modifier = m,
+            contentScale = if (node.text("fit") == "contain") ContentScale.Fit else ContentScale.Crop,
+        )
+    } else {
+        Box(m.background(role("surfaceVariant", env)), contentAlignment = Alignment.Center) {
+            Image(
+                provider = ImageProvider(if (media) R.drawable.ic_w_music_note else R.drawable.ic_w_image), contentDescription = null,
+                modifier = GlanceModifier.size(Math.max(16, Math.min(32, sideDp / 2)).dp), colorFilter = ColorFilter.tint(role("muted", env)),
+            )
+        }
+    }
 }
 
 /**
@@ -321,7 +374,7 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
                 colorFilter = ColorFilter.tint(color),
             )
         }
-        "image" -> Spacer(mod) // images arrive with the sources that supply them
+        "image" -> Picture(n, mod, env)
         "progress" -> {
             val fraction = (n.fraction ?: 0.0).toFloat()
             val track = role("surfaceVariant", env)

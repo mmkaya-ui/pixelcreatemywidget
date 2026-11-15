@@ -39,6 +39,8 @@ SOURCES AND THEIR FIELDS
 Read a source by its name, for example {wx.now.temp}. Only these fields exist; any other field is refused.
 ${dev.afterdrop.spec.SourceShapes.describe()}
 Times are epoch milliseconds: show one with fmt(t, 'HH:mm'). A list field marked [] needs [index], first(), pluck(list, 'field') or a "list" node.
+An "image" node shows a picture from a source field: "src": "source:np.art" for the song's cover, or "src": "source:it.image" inside a list of feed items. Give it "w" and "h"; "fit" is cover or contain.
+A notes source is a note the person writes on the phone; a {"do": "edit"} tap on that widget opens the note to write in. An ai source asks Gemini for a short text; its "prompt" is a template.
 
 ICONS
 ${dev.afterdrop.spec.IconNames.ALL.joinToString(" ")}
@@ -52,7 +54,7 @@ A "clock" node shows the live time or date by itself: {"t": "clock", "format": "
 Round numbers you show: {num(wx.now.temp, 0)}.
 
 ACTIONS (for "tap")
-{"do": "refresh"} | {"do": "edit"} | {"do": "open_url", "url": "https://..."} | {"do": "open_app", "pkg": "com.example.app"} | {"do": "open_source", "source": name} | {"do": "set", "var": name, "to": formula} | {"do": "ask", "var": name, "title": "..."}
+{"do": "refresh"} | {"do": "edit"} (writes the note of a notes widget, otherwise opens the widget's settings) | {"do": "open_url", "url": "https://..."} | {"do": "open_app", "pkg": "com.example.app"} | {"do": "open_source", "source": name} | {"do": "set", "var": name, "to": formula} | {"do": "ask", "var": name, "title": "..."}
 
 PRIVACY RULE
 Parameters of http, feed and ai sources must not use values from calendar, health, notes or media sources.
