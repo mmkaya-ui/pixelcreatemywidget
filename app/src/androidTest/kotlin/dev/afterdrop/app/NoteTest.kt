@@ -24,11 +24,13 @@ class NoteTest {
     private fun onScreen(): List<String> =
         device.findObjects(By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { it.text }.filter { it.isNotBlank() }.distinct().take(25)
 
+    /** The dialog redraws while the keyboard opens, so the button is looked up afresh until a press lands. */
     private fun save() {
-        val button = device.wait(Until.findObject(By.text("Save")), 10_000)
-        assertNotNull("no Save button; the screen shows: " + onScreen(), button)
-        button!!.click()
-        device.wait(Until.gone(By.text("Save")), 5_000)
+        assertNotNull("no Save button; the screen shows: " + onScreen(), device.wait(Until.findObject(By.text("Save")), 10_000))
+        repeat(5) {
+            runCatching { device.findObject(By.text("Save"))?.click() }
+            if (device.wait(Until.gone(By.text("Save")), 2_000)) return
+        }
     }
 
     @Test

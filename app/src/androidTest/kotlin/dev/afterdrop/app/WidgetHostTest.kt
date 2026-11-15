@@ -106,10 +106,25 @@ class WidgetHostTest {
     private fun dump(root: View): List<Item> {
         val out = ArrayList<Item>()
         inst.runOnMainSync {
+            // A list scrolls and clips its rows, so a row is judged by the part the list shows.
+            fun clipOf(v: View): Rect? {
+                var up = v.parent as? View
+                while (up != null && up !== root) {
+                    if (up is android.widget.AbsListView) {
+                        val l = IntArray(2)
+                        up.getLocationOnScreen(l)
+                        return Rect(l[0], l[1], l[0] + up.width, l[1] + up.height)
+                    }
+                    up = up.parent as? View
+                }
+                return null
+            }
             fun walk(v: View) {
                 if (v.visibility != View.VISIBLE) return
+                val clip = clipOf(v)
                 val loc = IntArray(2)
                 v.getLocationOnScreen(loc)
+                if (clip != null && !Rect(loc[0], loc[1], loc[0] + v.width, loc[1] + v.height).intersect(clip)) return
                 var height = v.height
                 if (v is android.widget.CompoundButton) {
                     // The touch target of a checkbox or switch is the tallest tappable view around it.
@@ -120,6 +135,7 @@ class WidgetHostTest {
                     }
                 }
                 val rect = Rect(loc[0], loc[1], loc[0] + v.width, loc[1] + height)
+                if (clip != null) rect.intersect(clip)
                 when (v) {
                     is TextView -> {
                         val l = v.layout
@@ -405,14 +421,50 @@ class WidgetHostTest {
         }
     }
 
+    private fun granted(perms: Array<String>) = perms.all { context.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
+
+    /**
+     * Asks for health permissions the way the app does, and answers Health Connect's own screen as a
+     * person would. Only a grant made there puts an app among the sources Health Connect adds up.
+     */
+    private fun grantThroughHealthConnect(perms: Array<String>, shot: String): Boolean {
+        val device = androidx.test.uiautomator.UiDevice.getInstance(inst)
+        scenario.onActivity { it.requestPermissions(perms, 7) }
+        val end = System.currentTimeMillis() + 30_000
+        var allTapped = false
+        var shotTaken = false
+        while (System.currentTimeMillis() < end) {
+            if (granted(perms)) break
+            runCatching {
+                if (!shotTaken && device.findObject(androidx.test.uiautomator.By.text("Allow")) != null) {
+                    Thread.sleep(600)
+                    Shots.log(shot)
+                    shotTaken = true
+                }
+                device.findObject(androidx.test.uiautomator.By.text(java.util.regex.Pattern.compile("(?i)get started|continue")))?.click()
+                if (!allTapped) device.findObject(androidx.test.uiautomator.By.text("Allow all"))?.let { it.click(); allTapped = true; Thread.sleep(600) }
+                device.findObject(androidx.test.uiautomator.By.text("Allow").enabled(true))?.click()
+            }
+            Thread.sleep(700)
+        }
+        val texts = device.findObjects(androidx.test.uiautomator.By.pkg(java.util.regex.Pattern.compile(".*"))).mapNotNull { runCatching { it.text }.getOrNull() }.filter { it.isNotBlank() }.distinct().take(20)
+        Log.i(TAG, "health connect screen for ${perms.toList()}: granted=${granted(perms)}; it showed $texts")
+        // Close the screen only if it is still up; once answered it closes by itself.
+        if (!granted(perms)) device.pressBack()
+        return granted(perms)
+    }
+
     /** A step record written into Health Connect shows up in the steps widget, today and in the week. */
     @Test
     fun stepsComeFromHealthConnect() {
         assertTrue("Health Connect is missing on this emulator", Steps.available(context))
-        for (perm in listOf(Steps.READ, "android.permission.health.WRITE_STEPS", Steps.BACKGROUND)) {
-            Log.i(TAG, "grant $perm: " + shell("pm grant ${context.packageName} $perm").trim())
-        }
+        val write = "android.permission.health.WRITE_STEPS"
+        for (perm in listOf(Steps.READ, write, Steps.BACKGROUND)) shell("pm revoke ${context.packageName} $perm")
+        val throughScreen = grantThroughHealthConnect(arrayOf(Steps.READ, write), "health-connect-permission")
+        if (!throughScreen) for (perm in listOf(Steps.READ, write)) Log.i(TAG, "pm grant $perm: " + shell("pm grant ${context.packageName} $perm").trim())
+        if (!grantThroughHealthConnect(arrayOf(Steps.BACKGROUND), "health-connect-background")) shell("pm grant ${context.packageName} ${Steps.BACKGROUND}")
         assertTrue("step access was not granted", Steps.granted(context))
+        Log.i(TAG, "steps granted through the Health Connect screen: $throughScreen; background: ${Steps.backgroundGranted(context)}")
         val hc = context.getSystemService(android.health.connect.HealthConnectManager::class.java)!!
         val zone = java.time.ZoneId.systemDefault()
         val now = java.time.Instant.now()
@@ -437,8 +489,27 @@ class WidgetHostTest {
             hc.insertRecords(listOf(record(start, now.minusSeconds(5), 4321), record(yesterdayNoon, yesterdayNoon.plusSeconds(1800), 2000)), Steps.direct, cb)
         }
         assertTrue("Health Connect did not take the test records", inserted?.records?.size == 2)
+        // The records are there to read, whatever Health Connect's totals include.
+        val raw = Steps.await<android.health.connect.ReadRecordsResponse<android.health.connect.datatypes.StepsRecord>> { cb ->
+            hc.readRecords(
+                android.health.connect.ReadRecordsRequestUsingFilters.Builder(android.health.connect.datatypes.StepsRecord::class.java)
+                    .setTimeRangeFilter(android.health.connect.TimeInstantRangeFilter.Builder().setStartTime(today.minusDays(2).atStartOfDay(zone).toInstant()).setEndTime(now).build())
+                    .build(),
+                Steps.direct, cb,
+            )
+        }
+        val rawTotal = raw?.records?.sumOf { it.count } ?: 0L
+        Log.i(TAG, "raw step records: ${raw?.records?.size}, total $rawTotal")
+        assertTrue("the test records cannot be read back: $rawTotal", rawTotal >= 6321)
         val v = Steps.value(context) as dev.afterdrop.formula.Value.Obj
         Log.i(TAG, "steps value: $v")
+        if (!throughScreen) {
+            // Granted behind Health Connect's back, the app is not among the sources it adds up, so the
+            // totals leave its records out. The read still has to work and give a well-formed week.
+            Log.w(TAG, "Health Connect's screen could not be answered; checking the shape of the totals only")
+            assertEquals(7, (v.fields["week"] as dev.afterdrop.formula.Value.ListV).items.size)
+            return
+        }
         val todaySteps = (v.fields["today"] as dev.afterdrop.formula.Value.Num).v
         val week = (v.fields["week"] as dev.afterdrop.formula.Value.ListV).items.map { (it as dev.afterdrop.formula.Value.Num).v }
         assertTrue("today shows $todaySteps, expected at least 4321", todaySteps >= 4321)
