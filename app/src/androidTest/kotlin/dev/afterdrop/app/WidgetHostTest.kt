@@ -353,6 +353,11 @@ class WidgetHostTest {
         return count
     }
 
+    /** A plain wallpaper behind widgets placed for a screenshot. */
+    private fun backdrop() {
+        scenario.onActivity { a -> a.addContentView(View(a).apply { setBackgroundColor(0xFF35506B.toInt()) }, FrameLayout.LayoutParams(-1, -1)) }
+    }
+
     /** A screenshot, with what the widget's views hold at that moment, to compare the two. */
     private fun shot(p: Placed, name: String) {
         Thread.sleep(1200)
@@ -408,7 +413,8 @@ class WidgetHostTest {
             Log.i(TAG, "now playing: ${track.title} / ${track.artist} / ${track.album} playing=${track.playing} art=${track.art}")
             assertTrue("not reported as playing", track.playing)
             assertTrue("cover art was not saved", track.art?.isFile == true)
-            val p = place(asset("now-playing"), 330, 80)
+            backdrop()
+            val p = place(asset("now-playing"), 330, 80, 12, 48)
             waitFor(p, "the song") { "Afterdrop Test Song" in it && "Test Artist" in it }
             waitUntil("the cover to be drawn") { pictures(p.view, "Cover art") == 1 }
             shot(p, "now-playing")
@@ -523,7 +529,8 @@ class WidgetHostTest {
         assertEquals("the week must have seven days", 7, week.size)
         assertEquals("the last day of the week is today", todaySteps, week[6], 0.0)
         assertTrue("yesterday shows ${week[5]}, expected at least 2000", week[5] >= 2000)
-        val p = place(asset("steps"), 180, 180)
+        backdrop()
+        val p = place(asset("steps"), 180, 180, 12, 48)
         waitFor(p, "the step count") { t -> t.any { Regex("4[,.\u202F\u00A0 ]?3\\d\\d").matches(it) } }
         shot(p, "steps")
         remove(p)
@@ -540,7 +547,8 @@ class WidgetHostTest {
         val ready = Images.prefetch(context, listOf(s))
         Log.i(TAG, "feed pictures ready: $ready")
         assertTrue("no story picture was downloaded", ready > 0)
-        val p = place(asset("headlines"), 330, 250)
+        backdrop()
+        val p = place(asset("headlines"), 330, 250, 12, 48)
         val shown = waitFor(p, "stories") { it.size > 3 }
         Log.i(TAG, "headlines show $shown")
         waitUntil("story pictures to be drawn") { pictures(p.view, "Picture") > 0 }
