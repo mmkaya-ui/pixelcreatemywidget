@@ -25,7 +25,7 @@ covered by tests that run in CI, including emulator runs on Android 16 and 17. A
 ## Step 2: finish the core promise
 
 - [x] Edit a widget by AI ("make the text bigger, use blue")
-- [ ] Preview before adding, and a way to change or delete a placed widget's design
+- [x] Live preview before adding, and a visual editor that also updates placed widgets
 - [x] Real icons instead of emoji stand-ins
 - [x] Images: cover art and feed pictures, cached small
 - [x] The `ask` action (type a value into a widget)

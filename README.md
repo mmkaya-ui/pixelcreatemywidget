@@ -16,6 +16,12 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
 - **Create with AI:** with your own Gemini API key, a model writes the widget. Every answer is
   checked; a rejected one is sent back with the reasons, up to twice, then the offline rules take over.
 - **Change with AI:** rewrite a widget you created, for example "bigger number, secondary colour".
+- **Live preview:** every widget in the app is drawn by the widget's own code with your real data.
+  A larger preview tries other sizes, light and dark, before you add it.
+- **Visual editor:** pick any part of a widget to change its text, size, weight, colour, fill,
+  corners and spacing; move, copy, remove or add parts; pick a colour set and starting size. Every
+  change is checked, undo goes back step by step, and saving updates widgets already on the home screen.
+- **Material You look:** tonal cards in your wallpaper's colours, with text that matches them.
 - **Any chatbot:** copy a ready prompt into any assistant and paste its answer back.
 - **Live data:** battery, storage, your next alarm, your calendar, steps (Health Connect: today and
   the last seven days), what is playing in any music app (song, artist, cover art), weather and air
@@ -39,7 +45,6 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
 
 ## What it does not do yet
 
-- No preview before adding.
 - Steps are the only health data; sleep, heart rate and the like are not read.
 - No model runs on the phone. Without a key, "Create" uses rules.
 - It cannot read other apps' private data. Android does not allow that.
@@ -81,6 +86,13 @@ What is playing (from a test media session, with its cover) and today's steps fr
 as drawn on the emulator:
 
 <img src="docs/screenshots/live-widgets.png" width="420" alt="A now-playing widget with cover art and a steps ring showing 4321">
+
+The larger preview (here in dark) and the visual editor:
+
+<p>
+<img src="docs/screenshots/preview.png" width="200" alt="The larger preview of a widget in dark mode">
+<img src="docs/screenshots/editor.png" width="200" alt="The visual editor with a part selected">
+</p>
 
 ## Install
 
