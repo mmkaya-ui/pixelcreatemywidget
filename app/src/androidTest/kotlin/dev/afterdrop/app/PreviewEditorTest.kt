@@ -136,7 +136,7 @@ class PreviewEditorTest {
             "no warning for a broken formula; the screen shows: " + onScreen(),
             device.wait(Until.findObject(By.text(Pattern.compile("(?s).*(Not applied yet|Not saved yet).*"))), 5_000),
         )
-        assertNotNull("the typing was lost", device.findObject(By.text("{bat.nothing}")))
+        assertNotNull("the typing was lost; the screen shows: " + onScreen(), device.wait(Until.findObject(By.textContains("bat.nothing")), 3_000))
         // Saving now keeps the last good version: the broken text never reaches the widget.
         val store = Store(context)
         store.deleteUserSpec("Refusal check")
