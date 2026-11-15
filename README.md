@@ -77,6 +77,11 @@ the same wall in dark theme with the largest font, and a widget placed on the ho
 <img src="docs/screenshots/home-with-widget.png" width="200" alt="A widget on the home screen">
 </p>
 
+What is playing (from a test media session, with its cover) and today's steps from Health Connect,
+as drawn on the emulator:
+
+<img src="docs/screenshots/live-widgets.png" width="420" alt="A now-playing widget with cover art and a steps ring showing 4321">
+
 ## Install
 
 Download the APK from the repository's Releases page and open it on the phone. Releases are signed
