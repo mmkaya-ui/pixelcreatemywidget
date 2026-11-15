@@ -225,6 +225,11 @@ private val fitting = suite("fit") {
         yes(f.scale > 0, "expected a smaller scale")
         eq(4, f.root.all().count { it.type == "text" || it.type == "col" })
     }
+    test("one cell wide, padding shrinks so a padded card still shows its text") {
+        val f = fit("morning-dashboard", 400, width = 57)
+        yes(f.scale == 2, "expected the smallest padding for a one-cell-wide widget")
+        yes(f.root.all().any { it.type == "text" }, "nothing readable is left: ${f.root.all().map { it.type }.toList()}")
+    }
     test("checklists drop rows from the end") {
         val f = fit("weekly-chores", 110)
         val labels = f.root.all().filter { it.type == "check" }.mapNotNull { it.text }.toList()

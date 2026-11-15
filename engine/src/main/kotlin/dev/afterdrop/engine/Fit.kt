@@ -30,12 +30,18 @@ object Fit {
      */
     fun fit(root: RNode, widthDp: Int, heightDp: Int, fontScale: Double = 1.0): Fitted {
         val fs = fontScale.coerceIn(0.8, 2.0)
-        val narrowed = narrow(root, widthDp.toDouble(), fs, true)
+        // A very narrow widget cannot afford full padding either: one cell wide, cards would leave no room inside.
+        val least = when {
+            widthDp < 100 -> 2
+            widthDp < 140 -> 1
+            else -> 0
+        }
+        val narrowed = narrow(root, widthDp.toDouble(), fs, true, least)
         val room = heightDp - SLACK
         val w = widthDp.toDouble()
-        for (s in 0..2) if (height(narrowed, s, true, fs, w) <= room) return Fitted(narrowed, s)
+        for (s in least..2) if (height(narrowed, s, true, fs, w) <= room) return Fitted(narrowed, s)
         val pruned = shrink(narrowed, room.toDouble(), 2, true, fs, w)
-        val scale = (0..2).firstOrNull { height(pruned, it, true, fs, w) <= room } ?: 2
+        val scale = (least..2).firstOrNull { height(pruned, it, true, fs, w) <= room } ?: 2
         return Fitted(pruned, scale)
     }
 
@@ -104,7 +110,7 @@ object Fit {
     private val ROUNDS: List<(RNode) -> Boolean> = listOf({ it.type in DECOR }, { !interactive(it) }, { true })
 
     /** Estimated least width in dp. Text can wrap or shorten, so it never asks for more than 28. */
-    fun width(n: RNode, fs: Double, isRoot: Boolean = false): Double {
+    fun width(n: RNode, fs: Double, isRoot: Boolean = false, scale: Int = 0): Double {
         n.node.int("w")?.let { return it.toDouble() }
         val grows = (n.node.int("grow") ?: 0) > 0
         val gap = n.node.int("gap") ?: 0
@@ -120,26 +126,26 @@ object Fit {
             "toggle", "check" -> 52 + chars(n.text, 14.0)
             "stepper" -> 136.0
             "list" -> 56.0
-            "row" -> n.kids.sumOf { width(it, fs) } + gap * Math.max(0, n.kids.size - 1)
-            "col", "box" -> n.kids.maxOfOrNull { width(it, fs) } ?: 0.0
+            "row" -> n.kids.sumOf { width(it, fs, false, scale) } + gap * Math.max(0, n.kids.size - 1)
+            "col", "box" -> n.kids.maxOfOrNull { width(it, fs, false, scale) } ?: 0.0
             else -> 0.0
         }
-        return inner + 2 * pad(n, 0, isRoot)
+        return inner + 2 * pad(n, scale, isRoot)
     }
 
     /** Drops children of rows that cannot fit side by side, so nothing is squeezed to zero width. */
-    private fun narrow(n: RNode, available: Double, fs: Double, isRoot: Boolean): RNode {
+    private fun narrow(n: RNode, available: Double, fs: Double, isRoot: Boolean, scale: Int = 0): RNode {
         if (n.kids.isEmpty() || n.type == "list") return n
-        val inside = available - 2 * pad(n, 0, isRoot)
+        val inside = available - 2 * pad(n, scale, isRoot)
         if (n.type != "row") {
             // In a column, a child wider than the widget would be cut off; keep the ones that fit.
-            val narrowed = n.kids.map { narrow(it, inside, fs, false) }
-            val fits = narrowed.filter { width(it, fs) <= inside || (interactive(it) && it.type != "stepper" && inside >= 48) }
+            val narrowed = n.kids.map { narrow(it, inside, fs, false, scale) }
+            val fits = narrowed.filter { width(it, fs, false, scale) <= inside || (interactive(it) && it.type != "stepper" && inside >= 48) }
             return n.withKids(if (fits.isNotEmpty()) fits else narrowed.take(1))
         }
         val kids = n.kids.toMutableList()
         val gap = n.node.int("gap") ?: 0
-        fun total() = kids.sumOf { width(it, fs) } + gap * Math.max(0, kids.size - 1)
+        fun total() = kids.sumOf { width(it, fs, false, scale) } + gap * Math.max(0, kids.size - 1)
         for (droppable in ROUNDS) {
             while (kids.size > 1 && total() > inside) {
                 val i = kids.indexOfLast(droppable)
@@ -148,7 +154,7 @@ object Fit {
             }
         }
         val share = if (kids.size == 1) inside else inside / kids.size
-        return n.withKids(kids.map { narrow(it, Math.max(share, width(it, fs)), fs, false) })
+        return n.withKids(kids.map { narrow(it, Math.max(share, width(it, fs, false, scale)), fs, false, scale) })
     }
 
     private fun shrink(n: RNode, available: Double, scale: Int, isRoot: Boolean, fs: Double, w: Double): RNode {

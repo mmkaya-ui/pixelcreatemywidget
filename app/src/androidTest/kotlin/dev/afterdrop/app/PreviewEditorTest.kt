@@ -126,7 +126,8 @@ class PreviewEditorTest {
     fun theEditorRefusesABrokenFormulaButKeepsTheTyping() {
         context.startActivity(EditorActivity.intent(context, asset("battery")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         assertNotNull(device.wait(Until.findObject(By.text("Edit design")), 10_000))
-        device.wait(Until.findObject(By.text("Charging")), 5_000)!!.click()
+        // "Plug in soon" is only in the parts list; the preview above does not show it on a charged emulator.
+        device.wait(Until.findObject(By.text("Plug in soon")), 5_000)!!.click()
         val field = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)
         assertNotNull("no text field for the part", field)
         field!!.text = "{num(bat.level"
