@@ -132,9 +132,23 @@ class PreviewEditorTest {
         assertNotNull("no text field for the part", field)
         // The battery source has no such field, so this is refused; an unclosed brace would just be text.
         field!!.text = "{bat.nothing}"
-        assertNotNull("no warning for a broken formula; the screen shows: " + onScreen(), device.wait(Until.findObject(By.textContains("Not applied yet")), 5_000))
+        assertNotNull(
+            "no warning for a broken formula; the screen shows: " + onScreen(),
+            device.wait(Until.findObject(By.text(Pattern.compile("(?s).*(Not applied yet|Not saved yet).*"))), 5_000),
+        )
         assertNotNull("the typing was lost", device.findObject(By.text("{bat.nothing}")))
-        device.findObject(By.text("Cancel"))?.click()
+        // Saving now keeps the last good version: the broken text never reaches the widget.
+        val store = Store(context)
+        store.deleteUserSpec("Refusal check")
+        device.findObject(By.text("Look"))!!.click()
+        device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)!!.text = "Refusal check"
+        Thread.sleep(500)
+        device.findObject(By.text("Save"))!!.click()
+        val end = System.currentTimeMillis() + 5_000
+        while (store.userSpecs()["Refusal check"] == null && System.currentTimeMillis() < end) Thread.sleep(200)
+        val saved = store.userSpecs()["Refusal check"]
+        assertNotNull("the widget was not saved", saved)
+        assertTrue("the broken text got into the widget", "bat.nothing" !in saved!! && "Plug in soon" in saved)
     }
 
     private companion object {

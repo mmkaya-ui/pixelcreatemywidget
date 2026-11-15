@@ -323,8 +323,8 @@ class EditorActivity : ComponentActivity() {
         OutlinedTextField(
             value = text, onValueChange = { text = it.take(300); ok = onChange(text) },
             label = { Text(label) }, isError = !ok, modifier = Modifier.fillMaxWidth(),
-            supportingText = { if (!ok) Text("Not applied yet: check the { } parts") },
         )
+        if (!ok) Text("Not applied yet: check the { } parts. The widget keeps its last good version.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
     }
 
     @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
