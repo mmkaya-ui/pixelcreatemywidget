@@ -2,14 +2,18 @@
   "v": 1,
   "name": "Holiday countdown",
   "size": { "cols": 2, "rows": 1 },
-  "calc": { "left": "days(today(), date('2026-12-24'))" },
+  "about": "Days to 24 December. It moves on to next year by itself.",
+  "calc": {
+    "target": "date(fmt(today() + 7 * 86400000, 'yyyy') + '-12-24')",
+    "left": "days(today(), target)"
+  },
   "root": {
     "t": "row", "pad": 12, "gap": 10, "cross": "center",
     "kids": [
       { "t": "text", "text": "{left}", "style": "display", "bold": true, "color": "primary" },
       { "t": "col", "kids": [
         { "t": "text", "text": "{left == 1 ? 'day' : 'days'} to go", "style": "title" },
-        { "t": "text", "text": "Thu 24 Dec", "style": "caption", "color": "muted" }
+        { "t": "text", "text": "{fmt(target, 'EEE d MMM yyyy')}", "style": "caption", "color": "muted" }
       ] }
     ]
   }

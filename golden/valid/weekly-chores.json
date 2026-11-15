@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "name": "Weekly chores",
+  "about": "Three jobs that come round every week. The ticks clear on Monday.",
+  "size": { "cols": 2, "rows": 2 },
+  "vars": {
+    "laundry": { "type": "bool", "init": false, "reset": "weekly" },
+    "bins": { "type": "bool", "init": false, "reset": "weekly" },
+    "plants": { "type": "bool", "init": false, "reset": "weekly" }
+  },
+  "calc": { "done": "(laundry ? 1 : 0) + (bins ? 1 : 0) + (plants ? 1 : 0)" },
+  "root": {
+    "t": "col", "pad": 12, "gap": 4,
+    "kids": [
+      { "t": "text", "text": "{done} of 3 this week", "style": "label", "color": "muted" },
+      { "t": "check", "var": "laundry", "label": "Laundry" },
+      { "t": "check", "var": "bins", "label": "Bins out" },
+      { "t": "check", "var": "plants", "label": "Water plants" },
+      { "t": "text", "text": "All done", "style": "caption", "color": "success", "if": "done == 3" }
+    ]
+  }
+}

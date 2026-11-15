@@ -96,7 +96,11 @@ private val resolving = suite("resolve") {
         eq("Nothing scheduled", Engine.resolve(input(s)).all().first { it.type == "list" }.text)
     }
     test("countdown and calc chain") {
-        eq(listOf("43", "days to go", "Thu 24 Dec"), texts(Engine.resolve(input(spec("holiday-countdown")))))
+        eq(listOf("43", "days to go", "Thu 24 Dec 2026"), texts(Engine.resolve(input(spec("holiday-countdown")))))
+        // On the day it shows 0; the day after, it has moved on to next year.
+        val christmasEve = 1_798_066_800_000L + 12 * 3_600_000L // 2026-12-24 12:00 Berlin
+        eq("0", texts(Engine.resolve(input(spec("holiday-countdown"), now = christmasEve)))[0])
+        eq(listOf("364", "days to go", "Fri 24 Dec 2027"), texts(Engine.resolve(input(spec("holiday-countdown"), now = christmasEve + DAY))))
     }
     test("progress is clamped to 0..1") {
         val s = spec("water-today")
@@ -166,7 +170,7 @@ private val acting = suite("actions") {
 
 private val variables = suite("variables") {
     val s = spec("water-today") // glasses resets daily
-    val weekly = spec("shopping-checks") // resets weekly
+    val weekly = spec("weekly-chores") // resets weekly
     fun stored(v: Value, at: Long) = mapOf("glasses" to StoredVar(v, at))
     test("starting values") { eq(mapOf("glasses" to Value.Num(0.0)), Vars.current(s, emptyMap(), NOW, BERLIN)) }
     test("a value set today is kept") {
@@ -178,9 +182,9 @@ private val variables = suite("variables") {
         eq(Value.Num(5.0), Vars.current(s, stored(Value.Num(5.0), lateYesterday - 3_600_000), lateYesterday, BERLIN)["glasses"])
     }
     test("weekly reset happens on Monday") {
-        val st = mapOf("milk" to StoredVar(Value.Bool(true), NOW))
-        eq(Value.Bool(true), Vars.current(weekly, st, NOW + 4 * DAY, BERLIN)["milk"]) // Sunday
-        eq(Value.Bool(false), Vars.current(weekly, st, NOW + 5 * DAY, BERLIN)["milk"]) // Monday
+        val st = mapOf("laundry" to StoredVar(Value.Bool(true), NOW))
+        eq(Value.Bool(true), Vars.current(weekly, st, NOW + 4 * DAY, BERLIN)["laundry"]) // Sunday
+        eq(Value.Bool(false), Vars.current(weekly, st, NOW + 5 * DAY, BERLIN)["laundry"]) // Monday
     }
     test("a stored value of the wrong type falls back to the start value") {
         eq(Value.Num(0.0), Vars.current(s, stored(Value.Str("five"), NOW), NOW, BERLIN)["glasses"])
@@ -222,9 +226,9 @@ private val fitting = suite("fit") {
         eq(4, f.root.all().count { it.type == "text" || it.type == "col" })
     }
     test("checklists drop rows from the end") {
-        val f = fit("shopping-checks", 110)
+        val f = fit("weekly-chores", 110)
         val labels = f.root.all().filter { it.type == "check" }.mapNotNull { it.text }.toList()
-        eq(listOf("Milk", "Bread"), labels)
+        eq(listOf("Laundry", "Bins out"), labels)
     }
     test("something always remains, even with no room at all") {
         for (f in File(goldenDir(), "valid").listFiles()!!.filter { it.name.endsWith(".json") }) {
@@ -243,8 +247,8 @@ private val fitting = suite("fit") {
         eq(2, fit("morning-dashboard", 250, width = 330).root.all().count { it.type == "button" })
     }
     test("a larger system font drops more") {
-        val normal = fit("shopping-checks", 180).root.all().count()
-        val large = fit("shopping-checks", 180, fs = 1.6).root.all().count()
+        val normal = fit("weekly-chores", 180).root.all().count()
+        val large = fit("weekly-chores", 180, fs = 1.6).root.all().count()
         yes(large <= normal, "large=$large normal=$normal")
         yes(Fit.height(fit("battery", 70, fs = 1.5).root, 2, true, 1.5) <= 70 || fit("battery", 70, fs = 1.5).root.all().count() <= 3)
     }

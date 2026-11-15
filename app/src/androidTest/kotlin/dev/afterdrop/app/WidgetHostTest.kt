@@ -686,7 +686,7 @@ class WidgetHostTest {
         }
         val placed = listOf(
             place(asset("water-today"), 180, 180, 12, 48), place(asset("sticky-note"), 180, 180, 204, 48),
-            place(asset("ride-check"), 180, 180, 12, 240), place(asset("shopping-checks"), 180, 180, 204, 240),
+            place(asset("ride-check"), 180, 180, 12, 240), place(asset("weekly-chores"), 180, 180, 204, 240),
             place(asset("rates"), 372, 110, 12, 432),
             place(asset("battery"), 180, 80, 12, 554), place(asset("holiday-countdown"), 180, 80, 204, 554),
             place(asset("morning-dashboard"), 372, 110, 12, 646),

@@ -10,7 +10,7 @@ See [ROADMAP.md](ROADMAP.md) for what is left.
 
 ## What it does today
 
-- **Gallery:** 18 ready-made widgets, each added with one tap.
+- **Gallery:** 19 ready-made widgets, each added with one tap.
 - **Describe a widget:** type "countdown to 24 December" or "track 8 glasses of water a day".
   Keyword rules on the phone build it, with no AI and no internet.
 - **Create with AI:** with your own Gemini API key, a model writes the widget. Every answer is
@@ -113,7 +113,7 @@ If the repository has a `GEMINI_API_KEY` secret, CI also holds a real conversati
 | `data` | Weather, air quality, exchange rates, feeds (with pictures) and JSON: request building and parsing. |
 | `app` | The Android app: gallery, describe screen, one Glance widget that renders any spec. |
 | `testkit` | A dependency-free test harness. |
-| `golden/valid` | 18 valid widget specs, which double as the gallery. |
+| `golden/valid` | 19 valid widget specs, which double as the gallery. |
 | `docs/schema` | JSON Schemas for a widget and for a brief. |
 
 The core modules have no dependencies beyond the Kotlin standard library and the JDK.

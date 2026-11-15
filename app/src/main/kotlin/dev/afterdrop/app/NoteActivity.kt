@@ -48,8 +48,9 @@ class NoteActivity : ComponentActivity() {
             finish()
             return
         }
-        // The notes placed widgets show; a share can go to any of them.
-        val names = (listOfNotNull(intent?.getStringExtra(NOTE)) + noteNames(store)).distinct().ifEmpty { listOf("pinned") }
+        // The notes placed widgets show; a share can go to any of them, and starts at the one written last.
+        val names = (listOfNotNull(intent?.getStringExtra(NOTE)) + noteNames(store).sortedByDescending { store.note(it)?.second ?: 0L })
+            .distinct().ifEmpty { listOf("pinned") }
         fun startText(name: String): String {
             val old = store.note(name)?.first ?: ""
             return if (shared == null) old else listOf(old.trimEnd(), shared).filter { it.isNotEmpty() }.joinToString("\n")

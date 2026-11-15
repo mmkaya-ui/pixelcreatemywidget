@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "name": "Shopping list",
+  "about": "A list you write on the phone. Tap to edit, or share text from any app to add to it.",
+  "size": { "cols": 2, "rows": 2 },
+  "sources": { "list": { "use": "notes", "with": { "note": "shopping" } } },
+  "root": {
+    "t": "col", "pad": 14, "gap": 6, "tap": { "do": "edit" },
+    "kids": [
+      { "t": "row", "gap": 6, "cross": "center", "kids": [
+        { "t": "icon", "icon": "shopping_cart", "iconSize": 18, "color": "primary" },
+        { "t": "text", "text": "Shopping", "style": "label", "color": "muted", "grow": 1 }
+      ] },
+      { "t": "text", "text": "{coalesce(list.text, 'Tap to add things to buy')}", "style": "body", "lines": 6 }
+    ]
+  }
+}
