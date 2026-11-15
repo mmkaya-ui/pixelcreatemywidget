@@ -16,6 +16,9 @@ object Vocabulary {
     val ROLES = setOf(
         "bg", "surface", "surfaceVariant", "primary", "onPrimary", "secondary", "tertiary",
         "text", "muted", "outline", "error", "success", "warning",
+        // Material You's tonal fills for cards and chips; text on them takes the matching colour by itself.
+        "primaryContainer", "onPrimaryContainer", "secondaryContainer", "onSecondaryContainer",
+        "tertiaryContainer", "onTertiaryContainer",
     )
     val NODE_TYPES = setOf(
         "col", "row", "box", "list", "text", "icon", "image", "progress", "chart",

@@ -45,7 +45,8 @@ class AfterdropWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         val store = Store(context)
-        if (store.spec(appWidgetId) == null) {
+        // A negative id is the app's own preview, never a placed widget.
+        if (appWidgetId >= 0 && store.spec(appWidgetId) == null) {
             // Placed through "Add to home screen": the app left the chosen spec waiting.
             store.pending?.let {
                 store.bind(appWidgetId, it)
@@ -63,6 +64,9 @@ class AfterdropWidget : GlanceAppWidget() {
         val TICK = longPreferencesKey("tick")
         val KEY = ActionParameters.Key<String>("key")
         val OP = ActionParameters.Key<String>("op")
+
+        /** Options key carrying a spec to draw in the app's preview. */
+        const val PREVIEW = "afterdrop.preview"
 
         suspend fun refresh(context: Context, id: GlanceId) {
             updateAppWidgetState(context, id) { it[TICK] = System.currentTimeMillis() }

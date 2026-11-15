@@ -11,7 +11,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -184,6 +195,16 @@ class MainActivity : ComponentActivity() {
         val stepsOk = remember(checks) { Steps.granted(this@MainActivity) }
         val stepsBackgroundOk = remember(checks) { Steps.backgroundGranted(this@MainActivity) }
         val mediaOk = remember(checks) { NowPlaying.allowed(this@MainActivity) }
+        // Back from the editor or from Settings: show what changed.
+        LaunchedEffect(checks) { list = entries() }
+        var previewing by remember { mutableStateOf<Entry?>(null) }
+        previewing?.let { e ->
+            PreviewDialog(
+                e, onDismiss = { previewing = null },
+                onAdd = { previewing = null; choose(e) { report = listOf(it) } },
+                onEdit = { previewing = null; startActivity(EditorActivity.intent(this@MainActivity, e.json, e.mine)) },
+            )
+        }
         Scaffold(Modifier.fillMaxSize().imePadding()) { inner ->
             LazyColumn(
                 contentPadding = PaddingValues(
@@ -296,6 +317,13 @@ class MainActivity : ComponentActivity() {
                 items(list) { e ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            // The widget as it will look, drawn by the widget's own code. Tap for a closer look.
+                            Box(
+                                Modifier.fillMaxWidth().background(WALLPAPER, RoundedCornerShape(16.dp)).clickable { previewing = e }.padding(12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                WidgetPreview(e.json, e.cols, e.rows, limitHeight = 170.dp)
+                            }
                             Text(e.name, style = MaterialTheme.typography.titleMedium)
                             if (e.about.isNotEmpty()) Text(e.about, style = MaterialTheme.typography.bodyMedium)
                             if (e.hosts.isNotEmpty()) {
@@ -360,6 +388,8 @@ class MainActivity : ComponentActivity() {
                                 if (stackNames.isNotEmpty()) {
                                     TextButton(onClick = { choose(e, stack = true) { askReport = listOf(it) } }) { Text("Add to stack") }
                                 }
+                                TextButton(onClick = { previewing = e }) { Text("Preview") }
+                                TextButton(onClick = { startActivity(EditorActivity.intent(this@MainActivity, e.json, e.mine)) }) { Text("Edit design") }
                                 if (e.mine) {
                                     TextButton(enabled = !busy, onClick = {
                                         val spec = (SpecReader.read(e.json) as? SpecResult.Ok)?.spec
@@ -461,7 +491,57 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * A closer look before adding: the widget at the size you pick, light or dark, with live data
+     * fetched for it just now (only from the services the widget itself uses).
+     */
+    @OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+    @Composable
+    private fun PreviewDialog(e: Entry, onDismiss: () -> Unit, onAdd: () -> Unit, onEdit: () -> Unit) {
+        var size by remember { mutableStateOf(e.cols to e.rows) }
+        var dark by remember { mutableStateOf<Boolean?>(null) }
+        var refresh by remember { mutableIntStateOf(0) }
+        LaunchedEffect(e.json) {
+            val spec = (SpecReader.read(e.json) as? SpecResult.Ok)?.spec ?: return@LaunchedEffect
+            val fetched = withContext(Dispatchers.IO) {
+                runCatching { Sources.refresh(this@MainActivity, listOf(spec), HttpsFetcher) + Images.prefetch(this@MainActivity, listOf(spec)) }.getOrDefault(0)
+            }
+            if (fetched > 0) refresh++
+        }
+        val sizes = (listOf(e.cols to e.rows) + listOf(2 to 1, 2 to 2, 4 to 1, 4 to 2, 4 to 3)).distinct()
+        Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(28.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(e.name, style = MaterialTheme.typography.titleLarge)
+                    Box(
+                        Modifier.fillMaxWidth().background(WALLPAPER, RoundedCornerShape(20.dp)).padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        WidgetPreview(e.json, size.first, size.second, dark = dark, limitHeight = 400.dp, refresh = refresh)
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (s in sizes) FilterChip(size == s, onClick = { size = s }, label = { Text("${s.first} × ${s.second}") })
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(dark == null, onClick = { dark = null }, label = { Text("Phone") })
+                        FilterChip(dark == false, onClick = { dark = false }, label = { Text("Light") })
+                        FilterChip(dark == true, onClick = { dark = true }, label = { Text("Dark") })
+                    }
+                    Text("Drawn with your real data. On the home screen you can resize it as well.", style = MaterialTheme.typography.bodySmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                        Button(onClick = onAdd) { Text(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) "Use this" else "Add to home screen") }
+                        TextButton(onClick = onEdit) { Text("Edit design") }
+                        TextButton(onClick = onDismiss) { Text("Close") }
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
+        /** Behind previews, a backdrop like a home-screen wallpaper. */
+        val WALLPAPER = Brush.linearGradient(listOf(Color(0xFF3F6187), Color(0xFF233447)))
+
         /** Opens the app to choose or change what one placed widget shows. */
         fun bindIntent(context: Context, appWidgetId: Int): Intent =
             Intent(context, MainActivity::class.java)

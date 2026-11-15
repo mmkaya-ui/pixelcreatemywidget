@@ -36,7 +36,12 @@ class LauncherPinTest {
             field.text = "show my battery"
             device.findObject(By.text("Create")).click()
             assertNotNull("widget was not created", device.wait(Until.findObject(By.textStartsWith("Created \"Battery\"")), 5_000))
-            val add = device.wait(Until.findObject(By.text("Add to home screen").pkg(ours)), 5_000)
+            // Each card now starts with a preview, so the button may sit below the fold.
+            var add = device.wait(Until.findObject(By.text("Add to home screen").pkg(ours)), 3_000)
+            if (add == null) {
+                add = device.findObject(By.scrollable(true).pkg(ours))
+                    ?.scrollUntil(androidx.test.uiautomator.Direction.DOWN, Until.findObject(By.text("Add to home screen").pkg(ours)))
+            }
             assertNotNull("no Add to home screen button", add)
             Shots.log("app-after-create")
             add.click()

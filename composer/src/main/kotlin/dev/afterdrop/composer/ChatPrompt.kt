@@ -56,6 +56,13 @@ Round numbers you show: {num(wx.now.temp, 0)}.
 ACTIONS (for "tap")
 {"do": "refresh"} | {"do": "edit"} (writes the note of a notes widget, otherwise opens the widget's settings) | {"do": "open_url", "url": "https://..."} | {"do": "open_app", "pkg": "com.example.app"} | {"do": "open_source", "source": name} | {"do": "set", "var": name, "to": formula} | {"do": "ask", "var": name, "title": "..."}
 
+DESIGN (make it look like a modern Material You widget)
+- One clear focus: a single big value (style display or headline, bold) with a short label in style label or caption, colour muted.
+- Use tonal fills for cards: "bg": "primaryContainer", "secondaryContainer" or "tertiaryContainer" with "radius" 16-24 and "pad" 10-14. Text on a fill takes the right colour by itself; do not set a text colour there unless it is an accent.
+- A small widget can be one tonal card: put the fill on the root. A bigger one can hold two or three cards in a row or column with "gap" 8.
+- Use an icon next to a label to say what a number is. Keep to three text sizes at most.
+- Buttons: "kind": "filled" for the main action, "tonal" for a second one, "plain" for a quiet one.
+
 PRIVACY RULE
 Parameters of http, feed and ai sources must not use values from calendar, health, notes or media sources.
 

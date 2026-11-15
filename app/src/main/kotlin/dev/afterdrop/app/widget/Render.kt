@@ -94,7 +94,12 @@ class Env(
     val maxHeight: Float = 10_000f,
     /** The spec's sources by name, for taps and pictures that depend on what a source is. */
     val sources: Map<String, dev.afterdrop.spec.Source> = emptyMap(),
+    /** Inside a tonal card, the colour text takes by default, so it always reads on that fill. */
+    val ink: String? = null,
 ) {
+    fun withInk(role: String?): Env =
+        Env(context, appWidgetId, nowMillis, custom, textFactor, padFactor, fontScale, maxWidth, maxHeight, sources, role)
+
     /** The note an "edit" tap writes: the widget's first notes source, if it has one. */
     val note: String? get() = sources.values.firstOrNull { it.use == "notes" }?.let { Sources.noteName(it) }
 
@@ -114,13 +119,15 @@ fun WidgetContent(appWidgetId: Int) {
     currentState(AfterdropWidget.TICK) // read so that a refresh recomposes this
     val size = LocalSize.current
     val frame = GlanceModifier.fillMaxSize().appWidgetBackground()
-        .background(GlanceTheme.colors.widgetBackground)
         .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-    val spec = AfterdropWidget.readSpec(context, appWidgetId)
+    // The app's own preview hands the spec in directly instead of a placed widget's id.
+    val preview = androidx.glance.appwidget.LocalAppWidgetOptions.current.getString(AfterdropWidget.PREVIEW)
+    val spec = preview?.let { (dev.afterdrop.spec.SpecReader.read(it) as? dev.afterdrop.spec.SpecResult.Ok)?.spec }
+        ?: AfterdropWidget.readSpec(context, appWidgetId)
     if (spec == null) {
         val message = if (Store(context).spec(appWidgetId) == null) R.string.choose_widget else R.string.broken_widget
         Box(
-            frame.padding(12.dp).clickable(actionStartActivity(MainActivity.bindIntent(context, appWidgetId))),
+            frame.background(GlanceTheme.colors.widgetBackground).padding(12.dp).clickable(actionStartActivity(MainActivity.bindIntent(context, appWidgetId))),
             contentAlignment = Alignment.Center,
         ) {
             Text(context.getString(message), style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 14.sp))
@@ -141,9 +148,11 @@ fun WidgetContent(appWidgetId: Int) {
             runCatching { custom[role] = Color(android.graphics.Color.parseColor((hex as JString).value)) }
         }
     }
+    // A custom palette may give the widget its own background; otherwise it follows the phone's colours.
+    val framed = frame.background(custom["bg"]?.let { ColorProvider(it) } ?: GlanceTheme.colors.widgetBackground)
     val env = Env(context, appWidgetId, input.nowMillis, custom, fitted.textFactor.toFloat(), fitted.padFactor.toFloat(), fontScale, Math.max(size.width.value - 2 * MIN_EDGE_DP, 24f), Math.max(height - 2f * MIN_EDGE_DP, 24f), spec.sources)
     if (pageCount > 1) {
-        Column(frame) {
+        Column(framed) {
             Box(GlanceModifier.defaultWeight().fillMaxWidth()) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
             // The whole strip is the tap target, so it is easy to hit even though the dots are small.
             Box(
@@ -157,15 +166,32 @@ fun WidgetContent(appWidgetId: Int) {
             }
         }
     } else {
-        Box(frame) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
+        Box(framed) { NodeView(root, GlanceModifier.fillMaxSize(), env, root = true) }
     }
+}
+
+/** The text colour that reads on a fill: tonal cards and strong colours each have their own. */
+private fun inkOn(fill: String): String? = when (fill) {
+    "primaryContainer" -> "onPrimaryContainer"
+    "secondaryContainer" -> "onSecondaryContainer"
+    "tertiaryContainer" -> "onTertiaryContainer"
+    "primary" -> "onPrimary"
+    else -> null
 }
 
 @Composable
 private fun role(name: String?, env: Env): ColorProvider {
+    // Plain and quiet text inside a tonal card take the card's own text colour.
+    if (env.ink != null && (name == null || name == "text" || name == "muted")) return role(env.ink, env.withInk(null))
     env.custom[name]?.let { return ColorProvider(it) }
     val c = GlanceTheme.colors
     return when (name) {
+        "primaryContainer" -> c.primaryContainer
+        "onPrimaryContainer" -> c.onPrimaryContainer
+        "secondaryContainer" -> c.secondaryContainer
+        "onSecondaryContainer" -> c.onSecondaryContainer
+        "tertiaryContainer" -> c.tertiaryContainer
+        "onTertiaryContainer" -> c.onTertiaryContainer
         "bg" -> c.widgetBackground
         "surface" -> c.surface
         "surfaceVariant" -> c.surfaceVariant
@@ -312,9 +338,13 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
     val pad = Math.round((node.int("pad") ?: 0) * env.padFactor)
     val edge = if (root) Math.max(pad, MIN_EDGE_DP) else pad
     if (edge > 0) mod = mod.padding(edge.dp)
-    node.text("bg")?.let { if (it != "none") mod = mod.background(role(it, env)) }
+    val fill = node.text("bg")?.takeIf { it != "none" }
+    fill?.let { mod = mod.background(role(it, env)) }
     node.int("radius")?.let { mod = mod.cornerRadius(it.dp) }
     tapAction(n, env)?.let { if (n.type != "button") mod = mod.clickable(it) }
+    // A part with its own fill sets the text colour for everything on it.
+    @Suppress("NAME_SHADOWING")
+    val env = if (fill != null) env.withInk(inkOn(fill)) else env
 
     val gap = node.int("gap") ?: 0
     val align = node.text("align")
@@ -323,7 +353,12 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
     val textStyle = TextStyle(
         color = color,
         fontSize = (fontSize(node.text("style")) * env.textFactor).sp,
-        fontWeight = if (node.flag("bold")) FontWeight.Bold else FontWeight.Normal,
+        // Large text gets a little weight even when not bold, as Material's type scale does.
+        fontWeight = when {
+            node.flag("bold") -> FontWeight.Bold
+            node.text("style") in setOf("display", "headline", "title") -> FontWeight.Medium
+            else -> FontWeight.Normal
+        },
     )
 
     when (n.type) {
@@ -437,9 +472,15 @@ private fun NodeView(n: RNode, base: GlanceModifier, env: Env, root: Boolean = f
             AndroidRemoteViews(rv, lineBox(mod, node, "0:00:00", env))
         }
         // 48 dp is the smallest comfortable touch target; Glance's own default is about half that.
+        // Filled for the main action, tonal for a secondary one, plain for a quiet link.
         "button" -> Button(
             text = n.text ?: "", onClick = tapAction(n, env) ?: run(n.key, "refresh"),
             modifier = if (node.has("h")) mod else mod.height(env.buttonHeight.dp), maxLines = 1,
+            colors = when (node.text("kind")) {
+                "tonal" -> androidx.glance.ButtonDefaults.buttonColors(role("secondaryContainer", env), role("onSecondaryContainer", env))
+                "plain" -> androidx.glance.ButtonDefaults.buttonColors(ColorProvider(Color.Transparent), role("primary", env))
+                else -> androidx.glance.ButtonDefaults.buttonColors(role("primary", env), role("onPrimary", env))
+            },
         )
         "toggle" -> Switch(
             checked = n.state?.truthy() ?: false, onCheckedChange = run(n.key, "toggle"),

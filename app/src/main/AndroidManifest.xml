@@ -59,6 +59,11 @@
             android:name=".PrivacyActivity"
             android:exported="true" />
 
+        <activity
+            android:name=".EditorActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Health Connect opens this to show why Afterdrop asks for step data. Android requires it
              before it will show the permission screen at all. -->
         <activity-alias

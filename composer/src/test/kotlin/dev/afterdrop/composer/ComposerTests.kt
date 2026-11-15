@@ -252,4 +252,4 @@ private val prompt = suite("chatbot prompt") {
     }
 }
 
-fun main() = runSuites(composing, briefs, rules, prompt)
+fun main() = runSuites(composing, briefs, rules, prompt, editing)
