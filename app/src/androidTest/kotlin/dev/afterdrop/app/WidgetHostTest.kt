@@ -353,6 +353,13 @@ class WidgetHostTest {
         return count
     }
 
+    /** A screenshot, with what the widget's views hold at that moment, to compare the two. */
+    private fun shot(p: Placed, name: String) {
+        Thread.sleep(1200)
+        Log.i(TAG, "$name views: " + dump(p.view).joinToString(" | ") { "${it.kind}:${it.text.take(24)}@${it.rect.toShortString()}" })
+        Shots.log(name)
+    }
+
     @Test
     fun noteWidgetShowsTheNote() {
         val store = Store(context)
@@ -404,7 +411,7 @@ class WidgetHostTest {
             val p = place(asset("now-playing"), 330, 80)
             waitFor(p, "the song") { "Afterdrop Test Song" in it && "Test Artist" in it }
             waitUntil("the cover to be drawn") { pictures(p.view, "Cover art") == 1 }
-            Shots.log("now-playing")
+            shot(p, "now-playing")
             // Paused music still shows; the widget follows without being told.
             inst.runOnMainSync {
                 session.setPlaybackState(
@@ -518,7 +525,7 @@ class WidgetHostTest {
         assertTrue("yesterday shows ${week[5]}, expected at least 2000", week[5] >= 2000)
         val p = place(asset("steps"), 180, 180)
         waitFor(p, "the step count") { t -> t.any { Regex("4[,.\u202F\u00A0 ]?3\\d\\d").matches(it) } }
-        Shots.log("steps")
+        shot(p, "steps")
         remove(p)
     }
 
@@ -537,7 +544,7 @@ class WidgetHostTest {
         val shown = waitFor(p, "stories") { it.size > 3 }
         Log.i(TAG, "headlines show $shown")
         waitUntil("story pictures to be drawn") { pictures(p.view, "Picture") > 0 }
-        Shots.log("headlines")
+        shot(p, "headlines")
         remove(p)
     }
 

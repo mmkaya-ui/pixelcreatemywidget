@@ -93,6 +93,7 @@ jobs:
           script: |
             adb logcat -G 16M
             adb logcat -c
-            ./gradlew :app:connectedDebugAndroidTest || (adb logcat -d -s AfterdropTest:V TestRunner:E AndroidRuntime:E; adb logcat -d -s AfterdropShot:V | cut -d: -f4- | sed "s/^ /SHOT /"; exit 1)
+            ./gradlew :app:connectedDebugAndroidTest || (adb logcat -d -s AfterdropTest:V TestRunner:E AndroidRuntime:E; adb logcat -d -v brief | grep -iE "glance|remoteviews|appwidget|TransactionTooLarge|dev\.afterdrop" | grep -vE "AfterdropShot|AfterdropTest" | tail -150; adb logcat -d -s AfterdropShot:V | cut -d: -f4- | sed "s/^ /SHOT /"; exit 1)
             adb logcat -d -s AfterdropTest:V
+            adb logcat -d -v brief | grep -iE "glance|remoteviews|appwidget|TransactionTooLarge|dev\.afterdrop" | grep -vE "AfterdropShot|AfterdropTest" | tail -150 || true
             adb logcat -d -s AfterdropShot:V | cut -d: -f4- | sed "s/^ /SHOT /"
