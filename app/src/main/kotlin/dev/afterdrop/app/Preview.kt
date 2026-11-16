@@ -89,7 +89,7 @@ fun WidgetPreview(json: String, cols: Int, rows: Int, modifier: Modifier = Modif
         val byWidth = if (maxWidth < size.width) maxWidth / size.width else 1f
         val byHeight = if (limitHeight != Dp.Unspecified && limitHeight < size.height) limitHeight / size.height else 1f
         val scale = Math.min(byWidth, byHeight)
-        Box(Modifier.size(size.width * scale, size.height * scale).semantics { contentDescription = "Widget preview" }) {
+        Box(Modifier.size(size.width * scale, size.height * scale).semantics { contentDescription = context.getString(R.string.widget_preview) }) {
             AndroidView(
                 factory = { PreviewFrame(it) },
                 modifier = Modifier.wrapContentSize(Alignment.TopStart, unbounded = true).size(size.width, size.height).graphicsLayer {

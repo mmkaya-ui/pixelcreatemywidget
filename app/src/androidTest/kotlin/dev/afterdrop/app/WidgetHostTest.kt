@@ -564,7 +564,7 @@ class WidgetHostTest {
         try {
             store.apiKey = ""
             val p = place(asset("daily-quote"), 330, 180)
-            waitFor(p, "the key message") { Sources.NEEDS_KEY in it }
+            waitFor(p, "the key message") { context.getString(R.string.needs_key) in it }
             remove(p)
             if (online()) {
                 store.apiKey = "not-a-real-key"

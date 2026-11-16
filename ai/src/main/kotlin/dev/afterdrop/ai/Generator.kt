@@ -37,8 +37,8 @@ sealed interface Outcome {
 object Generator {
     const val MAX_REPAIRS = 2
 
-    fun generate(description: String, model: TextModel, today: LocalDate): Outcome {
-        val (spec, attempts, problem) = converse(ChatPrompt.build(description), model)
+    fun generate(description: String, model: TextModel, today: LocalDate, language: String = "English"): Outcome {
+        val (spec, attempts, problem) = converse(ChatPrompt.build(description, language), model)
         if (spec != null) return Outcome.Ok(spec, "model", attempts)
         // One altitude down: the offline rules.
         val described = Describe.fromText(description, today)
@@ -56,14 +56,14 @@ object Generator {
      * secondary colour". The current widget is given to the model as data; the result is validated like
      * any other. There is no offline fallback: if the model cannot do it, the widget stays as it was.
      */
-    fun edit(current: WidgetSpec, instruction: String, model: TextModel): Outcome {
-        val (spec, attempts, problem) = converse(editPrompt(current, instruction), model)
+    fun edit(current: WidgetSpec, instruction: String, model: TextModel, language: String = "English"): Outcome {
+        val (spec, attempts, problem) = converse(editPrompt(current, instruction, language), model)
         return if (spec != null) Outcome.Ok(spec, "model", attempts) else Outcome.Failed(problem.replaceFirstChar { it.uppercase() } + ".")
     }
 
-    internal fun editPrompt(current: WidgetSpec, instruction: String): String =
+    internal fun editPrompt(current: WidgetSpec, instruction: String, language: String = "English"): String =
         ChatPrompt.build("Change the widget below as follows: " + instruction.trim().take(500) +
-            "\nKeep everything else as it is, including its name, sources and variables, unless the change needs otherwise.") +
+            "\nKeep everything else as it is, including its name, sources and variables, unless the change needs otherwise.", language) +
             "\n\nCURRENT WIDGET\n" + dev.afterdrop.spec.Json.write(current.json)
 
     /** Runs the ask-validate-repair loop. Returns the valid spec or null, the number of model calls, and the last problem. */

@@ -277,7 +277,7 @@ private fun Picture(n: RNode, mod: GlanceModifier, env: Env) {
     val bitmap = n.text?.let { Images.load(env.context, it, px) }
     if (bitmap != null) {
         Image(
-            provider = ImageProvider(bitmap), contentDescription = if (media) "Cover art" else "Picture", modifier = m,
+            provider = ImageProvider(bitmap), contentDescription = env.context.getString(if (media) R.string.cover_art else R.string.picture), modifier = m,
             contentScale = if (node.text("fit") == "contain") ContentScale.Fit else ContentScale.Crop,
         )
     } else {

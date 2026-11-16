@@ -437,4 +437,75 @@ private val fuzz = suite("fuzz") {
     }
 }
 
-fun main() = runSuites(golden, broken, lint, schema, json, fuzz)
+private val languageDir: File = File(goldenDir().parentFile, "app/src/main/assets/i18n")
+private val languages: Map<String, Map<String, String>> =
+    languageDir.listFiles { f -> f.name.endsWith(".json") }!!.sortedBy { it.name }.associate { it.name.removeSuffix(".json") to Localize.words(it.readText()) }
+
+private val localizing = suite("gallery languages") {
+    test("German and Turkish are there") {
+        yes("de" in languages && "tr" in languages, languages.keys.toString())
+    }
+    test("every text a gallery widget shows has a translation, and no translation is left over") {
+        val used = validFiles.flatMap { Localize.texts(it.readText()) }.toSet()
+        val needed = used.filter { Localize.needsTranslation(it) }
+        for ((lang, words) in languages) {
+            val missing = needed.filter { it !in words }
+            yes(missing.isEmpty(), "$lang has no translation for: $missing")
+            val stale = words.keys.filter { it !in used }
+            yes(stale.isEmpty(), "$lang translates texts no gallery widget has: $stale")
+        }
+    }
+    test("a translation keeps the data of the English text and only changes the words") {
+        for ((lang, words) in languages) for ((en, tr) in words) {
+            val problem = Localize.check(en, tr)
+            yes(problem == null, "$lang: \"$en\" -> \"$tr\" $problem")
+            yes(tr.isNotBlank(), "$lang: empty translation of \"$en\"")
+        }
+    }
+    test("every translated gallery widget is still a valid widget with the same shape") {
+        fun shape(v: JsonValue, key: String?): JsonValue = when (v) {
+            is JObject -> JObject(v.fields.entries.associateTo(LinkedHashMap()) { it.key to shape(it.value, it.key) })
+            is JArray -> JArray(v.items.map { shape(it, key) })
+            is JString -> if (key in setOf("name", "about", "text", "label", "empty", "title")) JString("") else v
+            else -> v
+        }
+        for ((lang, words) in languages) for (f in validFiles) {
+            val english = f.readText()
+            val translated = Localize.apply(english, words)
+            val r = SpecReader.read(translated)
+            yes(r is SpecResult.Ok, "$lang ${f.name}: " + ((r as? SpecResult.Rejected)?.problems?.firstOrNull()?.let { "${it.path} ${it.message}" }))
+            eq(shape(Json.parse(english), null), shape(Json.parse(translated), null), "$lang ${f.name} changed more than words")
+        }
+    }
+    test("widget names stay different from each other in each language") {
+        for ((lang, words) in languages) {
+            val names = validFiles.map { (SpecReader.read(Localize.apply(it.readText(), words)) as SpecResult.Ok).spec.name }
+            eq(names.size, names.toSet().size, "$lang has two widgets with the same name: ${names.groupBy { it }.filter { it.value.size > 1 }.keys}")
+        }
+    }
+    test("a text with no translation stays as it was, and nothing is touched without words") {
+        val json = File(goldenDir(), "valid/battery.json").readText()
+        eq(json, Localize.apply(json, emptyMap()))
+        val de = Localize.apply(json, mapOf("Battery" to "Akku"))
+        yes("Akku" in de && "Plug in soon" in de)
+        eq("not json", Localize.apply("not json", mapOf("a" to "b")))
+        eq(emptyMap<String, String>(), Localize.words("[1]"))
+        eq(mapOf("a" to "b"), Localize.words("{\"a\":\"b\",\"c\":3}"))
+    }
+    test("the data check allows moving data around and dropping a words-only choice, and nothing else") {
+        eq(null, Localize.check("{n} of {m} done", "{m} done, {n} first"))
+        eq(null, Localize.check("{left == 1 ? 'day' : 'days'} to go", "gün kaldı"))
+        eq(null, Localize.check("{left == 1 ? 'day' : 'days'} to go", "{left == 1 ? 'Tag' : 'Tage'} noch"))
+        yes(Localize.check("{n} of {m} done", "{n} done") != null, "dropping data")
+        yes(Localize.check("{n} done", "{n} and {m} done") != null, "adding data")
+        yes(Localize.check("{n} done", "{n} {n} done") != null, "repeating data")
+        yes(Localize.check("{fmt(x, 'HH:mm')}", "{fmt(y, 'HH:mm')}") != null, "other data")
+        eq(null, Localize.check("{coalesce(a.b, 'Hello')}", "{coalesce(a.b, 'Hallo')}"))
+    }
+    test("what needs words and what reads the same everywhere") {
+        yes(Localize.needsTranslation("Steps") && Localize.needsTranslation("{n} of 3 this week") && Localize.needsTranslation("{coalesce(a, 'Tap')}"))
+        yes(!Localize.needsTranslation("{num(hp.today, 0)}") && !Localize.needsTranslation("{fmt(it.start, 'HH:mm')}") && !Localize.needsTranslation("#3A3000"))
+    }
+}
+
+fun main() = runSuites(golden, broken, lint, schema, json, fuzz, localizing)

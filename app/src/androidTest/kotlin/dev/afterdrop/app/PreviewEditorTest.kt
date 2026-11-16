@@ -1,6 +1,7 @@
 package dev.afterdrop.app
 
 import android.content.Intent
+import android.graphics.Point
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -149,6 +150,35 @@ class PreviewEditorTest {
         val saved = store.userSpecs()["Refusal check"]
         assertNotNull("the widget was not saved", saved)
         assertTrue("the broken text got into the widget", "bat.nothing" !in saved!! && "Plug in soon" in saved)
+    }
+
+    /** Drag a part by its handle down past the next one: it lands there, and the saved widget has the new order. */
+    @Test
+    fun aPartCanBeDraggedToANewPlace() {
+        val store = Store(context)
+        store.deleteUserSpec("Weekly chores")
+        context.startActivity(EditorActivity.intent(context, asset("weekly-chores")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        assertNotNull("the editor did not open; the screen shows: " + onScreen(), device.wait(Until.findObject(By.text("Edit design")), 10_000))
+        val handle = device.wait(Until.findObject(By.desc("Move Laundry")), 5_000)
+        val below = device.wait(Until.findObject(By.desc("Move Bins out")), 5_000)
+        assertNotNull("no drag handle on Laundry; the screen shows: " + onScreen(), handle)
+        assertNotNull("no drag handle on Bins out", below)
+        handle!!.drag(Point(handle.visibleCenter.x, below!!.visibleCenter.y + 30), 400)
+        Thread.sleep(1000)
+        Shots.log("editor-dragged")
+        val laundry = device.findObject(By.desc("Move Laundry"))
+        val bins = device.findObject(By.desc("Move Bins out"))
+        assertNotNull(laundry)
+        assertNotNull(bins)
+        assertTrue("Laundry is still above Bins out after the drag", bins.visibleCenter.y < laundry.visibleCenter.y)
+        device.findObject(By.text("Save"))!!.click()
+        val end = System.currentTimeMillis() + 5_000
+        while (store.userSpecs()["Weekly chores"] == null && System.currentTimeMillis() < end) Thread.sleep(200)
+        val saved = store.userSpecs()["Weekly chores"]
+        assertNotNull("the widget was not saved", saved)
+        val doc = SpecEdit.parse(saved!!)
+        assertTrue("Bins out is not first now", SpecEdit.node(doc, listOf("1"))!!["label"] == "Bins out")
+        assertTrue("Laundry is not second now", SpecEdit.node(doc, listOf("2"))!!["label"] == "Laundry")
     }
 
     private companion object {

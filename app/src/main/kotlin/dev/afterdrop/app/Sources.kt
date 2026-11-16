@@ -44,9 +44,6 @@ object Sources {
     /** The note a notes source shows; widgets naming the same note share it. */
     fun noteName(source: Source): String = ((source.with["note"] as? JString)?.value ?: "").trim().take(40).ifEmpty { "pinned" }
 
-    /** Shown by an ai source until the person adds a Gemini key. */
-    const val NEEDS_KEY = "Add your Gemini API key in Afterdrop to see this."
-
     /** Whether any placed widget, on any page, reads a source of this kind. */
     fun anyPlacedUses(context: Context, use: String): Boolean = Store(context).placedSpecs().any { json ->
         (SpecReader.read(json) as? SpecResult.Ok)?.spec?.sources?.values?.any { it.use == use } == true
@@ -84,7 +81,7 @@ object Sources {
                     "notes" -> store.note(noteName(source))?.let { (text, at) ->
                         Value.Obj(mapOf("text" to Value.Str(text), "updated" to Value.Num(at.toDouble())))
                     }
-                    "ai" -> if (store.apiKey.isBlank()) Value.Obj(mapOf("text" to Value.Str(NEEDS_KEY)))
+                    "ai" -> if (store.apiKey.isBlank()) Value.Obj(mapOf("text" to Value.Str(context.getString(R.string.needs_key))))
                     else store.cached(NetworkSources.cacheKey(source, home))?.first?.toValue()
                     in NetworkSources.KINDS -> store.cached(NetworkSources.cacheKey(source, home))?.first?.toValue()
                     else -> null
@@ -158,8 +155,8 @@ object Sources {
             else -> {
                 // Say why instead of waiting forever, and try again in half an hour.
                 if (age == null) {
-                    val why = (reply as? Reply.Failed)?.reason ?: "no answer"
-                    store.cache(cacheKey, JObject(mapOf("text" to JString("Gemini did not answer: $why"))), now - every + AI_RETRY)
+                    val why = (reply as? Reply.Failed)?.reason ?: context.getString(R.string.no_answer)
+                    store.cache(cacheKey, JObject(mapOf("text" to JString(context.getString(R.string.gemini_no_answer, why)))), now - every + AI_RETRY)
                     return true
                 }
                 false

@@ -9,7 +9,8 @@ import dev.afterdrop.spec.Vocabulary
  * The lists come from the live vocabulary, so the prompt cannot drift from what the app accepts.
  */
 object ChatPrompt {
-    fun build(description: String): String {
+    /** @param language the language the widget's own words should be written in; English adds nothing to the prompt. */
+    fun build(description: String, language: String = "English"): String {
         val ask = description.trim().take(500).ifEmpty { "(describe the widget here)" }
         val props = Vocabulary.PROPS.entries.joinToString("\n") { (type, p) ->
             "- $type: " + (p - setOf("t", "id", "grow", "w", "h", "bg", "radius", "from", "if", "tap", "pad")).joinToString(", ").ifEmpty { "(no own properties)" }
@@ -19,7 +20,7 @@ You write home-screen widget descriptions as JSON in the "WidgetSpec v1" format.
 
 THE WIDGET I WANT
 $ask
-
+${if (language == "English") "" else "\nWrite every text a person reads in the widget (name, about, texts, labels, empty messages) in $language. Keys, formulas, function names and source names stay exactly as the format says.\n"}
 FORMAT
 Top level: "v": 1, "name" (1-40 chars), optional "about", "size": {"cols": 1-5, "rows": 1-5}, optional "theme", "sources", "vars", "calc", and "root" (one node).
 - "sources": up to 6, each name: {"use": one of ${Vocabulary.SOURCE_KINDS.joinToString(", ")}, optional "with": {...}, optional "every": one of ${Vocabulary.INTERVALS.joinToString(", ")}}.

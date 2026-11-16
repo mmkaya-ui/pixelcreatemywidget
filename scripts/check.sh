@@ -41,4 +41,5 @@ run dev.afterdrop.ai.AiTestsKt "$OUT/ai-test.jar:$OUT/ai.jar:$AI:$OUT/testkit.ja
 compile data "$OUT/spec.jar:$OUT/formula.jar" data/src/main/kotlin
 compile data-test "$OUT/data.jar:$OUT/spec.jar:$OUT/formula.jar:$OUT/testkit.jar" data/src/test/kotlin
 run dev.afterdrop.data.DataTestsKt "$OUT/data-test.jar:$OUT/data.jar:$OUT/spec.jar:$OUT/formula.jar:$OUT/testkit.jar:$STD"
+python3 scripts/check_strings.py
 echo "ALL CHECKS PASSED"

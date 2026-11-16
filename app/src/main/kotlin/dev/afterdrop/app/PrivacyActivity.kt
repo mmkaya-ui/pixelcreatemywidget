@@ -17,6 +17,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 
 /**
  * What Afterdrop reads and where it goes. Health Connect opens this when the person asks why the app
@@ -33,10 +34,10 @@ class PrivacyActivity : ComponentActivity() {
                         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = inner.calculateTopPadding() + 20.dp, bottom = inner.calculateBottomPadding() + 24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        item { Text("Privacy", style = MaterialTheme.typography.headlineMedium) }
+                        item { Text(stringResource(R.string.privacy_title), style = MaterialTheme.typography.headlineMedium) }
                         items(POINTS) { (title, body) ->
-                            Text(title, style = MaterialTheme.typography.titleMedium)
-                            Text(body, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(body), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -45,14 +46,12 @@ class PrivacyActivity : ComponentActivity() {
     }
 
     companion object {
-        val POINTS = listOf(
-            "No account, no tracking" to "Afterdrop has no account, no analytics, no ads and no crash reporting. Everything it keeps stays in its own storage on this phone.",
-            "Steps" to "Read from Health Connect on this phone to show today's steps and the last seven days in your widgets. Only step counts are read. They are never sent anywhere, and widgets that send data to the internet cannot use them. You can take the access back at any time in Health Connect.",
-            "What is playing" to "With notification access, Afterdrop asks Android which song is playing in apps that show media controls. It does not read, keep or send your notifications. Cover art is kept as a small picture in Afterdrop's own storage.",
-            "Calendar" to "Read on this phone to list your next events. Never sent anywhere.",
-            "Notes" to "What you write in a note widget, or share to Afterdrop, is kept on this phone only.",
-            "Internet data" to "Weather, air quality and exchange rates come from open-meteo.com and frankfurter.dev. Feeds and web data come only from addresses you allowed. Pictures that such data points to are downloaded from where it says.",
-            "Gemini" to "Only if you add your own Gemini API key: your widget descriptions, and the prompts of AI text widgets, go to Google's Gemini API. Private data (steps, calendar, notes, music) is never put into them.",
+        /** Each point's title and text, as string resources. */
+        val POINTS: List<Pair<Int, Int>> = listOf(
+            R.string.privacy_1_t to R.string.privacy_1_b, R.string.privacy_2_t to R.string.privacy_2_b,
+            R.string.privacy_3_t to R.string.privacy_3_b, R.string.privacy_4_t to R.string.privacy_4_b,
+            R.string.privacy_5_t to R.string.privacy_5_b, R.string.privacy_6_t to R.string.privacy_6_b,
+            R.string.privacy_7_t to R.string.privacy_7_b,
         )
     }
 }

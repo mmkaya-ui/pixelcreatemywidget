@@ -30,6 +30,7 @@ import dev.afterdrop.formula.Value
 import dev.afterdrop.formula.display
 import kotlinx.coroutines.launch
 import java.time.ZoneId
+import androidx.compose.ui.res.stringResource
 
 /** A small dialog over the home screen for a widget's "ask" tap: type a value, and the widget keeps it. */
 class AskActivity : ComponentActivity() {
@@ -65,7 +66,7 @@ class AskActivity : ComponentActivity() {
                         TextButton(onClick = {
                             val typed: Value? = if (number) text.trim().replace(',', '.').toDoubleOrNull()?.let { Value.Num(it) } else Value.Str(text)
                             val value = typed?.let { Vars.coerce(variable, it) }
-                            if (value == null) error = "Enter a number"
+                            if (value == null) error = getString(R.string.enter_number)
                             else {
                                 val stored = HashMap(store.vars(id))
                                 stored[name] = StoredVar(value, System.currentTimeMillis())
@@ -75,9 +76,9 @@ class AskActivity : ComponentActivity() {
                                     finish()
                                 }
                             }
-                        }) { Text("Save") }
+                        }) { Text(stringResource(R.string.save)) }
                     },
-                    dismissButton = { TextButton(onClick = { finish() }) { Text("Cancel") } },
+                    dismissButton = { TextButton(onClick = { finish() }) { Text(stringResource(R.string.cancel)) } },
                 )
             }
         }

@@ -31,6 +31,7 @@ import dev.afterdrop.app.widget.AfterdropWidget
 import dev.afterdrop.spec.SpecReader
 import dev.afterdrop.spec.SpecResult
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
 
 /**
  * Writes a note widget's text, over the home screen. Opened by tapping a note widget, or by sharing
@@ -61,7 +62,7 @@ class NoteActivity : ComponentActivity() {
                 var text by remember { mutableStateOf(startText(names.first()).take(Store.MAX_NOTE)) }
                 AlertDialog(
                     onDismissRequest = { finish() },
-                    title = { Text(if (shared != null) "Add to note" else "Note") },
+                    title = { Text(stringResource(if (shared != null) R.string.note_add_to else R.string.note_title)) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (names.size > 1) NoteChoice(names, name) {
@@ -71,7 +72,7 @@ class NoteActivity : ComponentActivity() {
                             OutlinedTextField(
                                 value = text, onValueChange = { text = it.take(Store.MAX_NOTE) },
                                 modifier = Modifier.fillMaxWidth(), minLines = 4, maxLines = 10,
-                                supportingText = { Text("Kept on this phone only. ${text.length} of ${Store.MAX_NOTE}") },
+                                supportingText = { Text(stringResource(R.string.note_kept, text.length, Store.MAX_NOTE)) },
                             )
                         }
                     },
@@ -82,9 +83,9 @@ class NoteActivity : ComponentActivity() {
                                 runCatching { AfterdropWidget.refreshAll(this@NoteActivity) }
                                 finish()
                             }
-                        }) { Text("Save") }
+                        }) { Text(stringResource(R.string.save)) }
                     },
-                    dismissButton = { TextButton(onClick = { finish() }) { Text("Cancel") } },
+                    dismissButton = { TextButton(onClick = { finish() }) { Text(stringResource(R.string.cancel)) } },
                 )
             }
         }

@@ -52,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -74,6 +75,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.util.Locale
 
 /** One gallery entry: a spec that is known to be valid. */
 class Entry(
@@ -127,6 +129,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** The phone's language in English words ("German"), for asking a model to write in it. */
+    private fun language(): String = Locale.getDefault().getDisplayLanguage(Locale.ENGLISH).ifBlank { "English" }
+
     private fun entry(json: String, mine: Boolean): Entry? {
         val spec = (SpecReader.read(json) as? SpecResult.Ok)?.spec ?: return null
         val missing = spec.sources.values.map { it.use }.filter { it !in Sources.AVAILABLE }.distinct()
@@ -137,7 +142,7 @@ class MainActivity : ComponentActivity() {
 
     private fun entries(): List<Entry> {
         val bundled = (assets.list("") ?: emptyArray()).filter { it.endsWith(".json") }.sorted().mapNotNull { file ->
-            runCatching { assets.open(file).bufferedReader().use { it.readText() } }.getOrNull()?.let { entry(it, false) }
+            runCatching { assets.open(file).bufferedReader().use { it.readText() } }.getOrNull()?.let { entry(Languages.localize(this, it), false) }
         }
         // Newest first, so a widget just created is at the top where the message says it is.
         val mine = Store(this).userSpecs().values.reversed().mapNotNull { entry(it, true) }
@@ -150,7 +155,7 @@ class MainActivity : ComponentActivity() {
         if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             if (stack) {
                 if (!store.addPage(bindId, e.json)) {
-                    say("A stack holds at most ${Store.MAX_PAGES} widgets. Remove one first.")
+                    say(getString(R.string.stack_full, Store.MAX_PAGES))
                     return
                 }
             } else store.bind(bindId, e.json)
@@ -170,7 +175,7 @@ class MainActivity : ComponentActivity() {
             manager.requestPinAppWidget(ComponentName(this, receiverFor(e.cols, e.rows)), null, null)
         if (!asked) {
             store.pending = null
-            say("Your launcher cannot add widgets from an app. Long-press the home screen, add the Afterdrop widget, then tap it.")
+            say(getString(R.string.launcher_cannot))
         }
     }
 
@@ -214,21 +219,20 @@ class MainActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    Text("Afterdrop", style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) "Choose what this widget shows."
-                        else "Pick a widget to add to your home screen, or paste a widget description below.",
+                        stringResource(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) R.string.main_intro_bind else R.string.main_intro),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(onClick = { startActivity(Intent(this@MainActivity, PrivacyActivity::class.java)) }) { Text("Privacy: what Afterdrop reads") }
+                    TextButton(onClick = { startActivity(Intent(this@MainActivity, PrivacyActivity::class.java)) }) { Text(stringResource(R.string.main_privacy)) }
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Describe a widget", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.describe_title), style = MaterialTheme.typography.titleMedium)
                         OutlinedTextField(
                             value = ask, onValueChange = { ask = it.take(500) },
                             modifier = Modifier.fillMaxWidth(), maxLines = 4,
-                            label = { Text("For example: countdown to 24 December") },
+                            label = { Text(stringResource(R.string.describe_hint)) },
                         )
                         FlowRow(itemVerticalAlignment = Alignment.CenterVertically) {
                             Button(enabled = ask.isNotBlank(), onClick = {
@@ -239,34 +243,32 @@ class MainActivity : ComponentActivity() {
                                             Store(this@MainActivity).saveUserSpec(r.spec.name, Json.write(r.spec.json))
                                             list = entries()
                                             ask = ""
-                                            listOf("Created \"${r.spec.name}\". It is first in the list below.")
+                                            listOf(getString(R.string.created_first, r.spec.name))
                                         }
                                         is SpecResult.Rejected -> r.problems.take(4).map { it.message }
                                     }
                                 }
-                            }) { Text("Create") }
+                            }) { Text(stringResource(R.string.create)) }
                             TextButton(enabled = ask.isNotBlank(), onClick = {
                                 val clipboard = getSystemService(ClipboardManager::class.java)
-                                clipboard?.setPrimaryClip(ClipData.newPlainText("Afterdrop prompt", ChatPrompt.build(ask)))
-                                askReport = listOf(
-                                    "Prompt copied. Paste it into any chat assistant, then paste its answer under \"Paste a widget description\" at the bottom."
-                                )
-                            }) { Text("Copy chatbot prompt") }
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("Afterdrop prompt", ChatPrompt.build(ask, language())))
+                                askReport = listOf(getString(R.string.prompt_copied))
+                            }) { Text(stringResource(R.string.copy_prompt)) }
                         }
                         Button(enabled = ask.isNotBlank() && !busy, onClick = {
                             if (key.isBlank()) {
-                                askReport = listOf("Add a Gemini API key below first. A free key comes from aistudio.google.com/apikey.")
+                                askReport = listOf(getString(R.string.need_key_first))
                             } else {
                                 busy = true
-                                askReport = listOf("Asking the model. This usually takes a few seconds.")
+                                askReport = listOf(getString(R.string.asking_model))
                                 val wanted = ask
                                 lifecycleScope.launch {
                                     val out = withContext(Dispatchers.IO) {
                                         runCatching {
                                             val gemini = Gemini(GeminiTransport, key.trim(), Store(this@MainActivity).model)
-                                            Generator.generate(wanted, gemini, LocalDate.now()).also { Store(this@MainActivity).model = gemini.modelName }
+                                            Generator.generate(wanted, gemini, LocalDate.now(), language()).also { Store(this@MainActivity).model = gemini.modelName }
                                         }
-                                            .getOrElse { Outcome.Failed("Something went wrong: ${it.message}") }
+                                            .getOrElse { Outcome.Failed(getString(R.string.went_wrong, it.message)) }
                                     }
                                     busy = false
                                     askReport = when (out) {
@@ -274,32 +276,31 @@ class MainActivity : ComponentActivity() {
                                             Store(this@MainActivity).saveUserSpec(out.spec.name, Json.write(out.spec.json))
                                             list = entries()
                                             ask = ""
-                                            listOfNotNull("Created \"${out.spec.name}\". It is first in the list below.", out.note)
+                                            listOfNotNull(getString(R.string.created_first, out.spec.name), out.note)
                                         }
                                         is Outcome.Failed -> listOf(out.reason)
                                     }
                                 }
                             }
-                        }) { Text(if (busy) "Working" else "Create with AI") }
+                        }) { Text(stringResource(if (busy) R.string.working else R.string.create_ai)) }
                         for (line in askReport) Text(line, style = MaterialTheme.typography.bodySmall)
                         OutlinedTextField(
                             value = key, onValueChange = { key = it.take(200); Store(this@MainActivity).apiKey = key },
                             modifier = Modifier.fillMaxWidth(), singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
-                            label = { Text("Gemini API key (optional, for Create with AI)") },
+                            label = { Text(stringResource(R.string.key_label)) },
                         )
                         Text(
-                            "With a key, your description is sent to Google's Gemini API. Nothing else leaves the phone. Without a key, Create uses rules on the phone.",
+                            stringResource(R.string.key_note),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
                 if (stackNames.isNotEmpty()) item {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("This widget shows", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.stack_title), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            if (stackNames.size > 1) "It is a stack: tap the dots under it on the home screen to flip to the next one."
-                            else "\"Use this\" replaces it. \"Add to stack\" keeps it and adds another you can flip to by tapping the dots.",
+                            stringResource(if (stackNames.size > 1) R.string.stack_many else R.string.stack_one),
                             style = MaterialTheme.typography.bodySmall,
                         )
                         stackNames.forEachIndexed { i, name ->
@@ -309,7 +310,7 @@ class MainActivity : ComponentActivity() {
                                     Store(this@MainActivity).removePage(bindId, i)
                                     stackNames = Store(this@MainActivity).pages(bindId).map { Store(this@MainActivity).nameOf(it) }
                                     lifecycleScope.launch { runCatching { AfterdropWidget.refreshAll(this@MainActivity) } }
-                                }) { Text("Remove") }
+                                }) { Text(stringResource(R.string.remove)) }
                             }
                         }
                     }
@@ -327,86 +328,86 @@ class MainActivity : ComponentActivity() {
                             Text(e.name, style = MaterialTheme.typography.titleMedium)
                             if (e.about.isNotEmpty()) Text(e.about, style = MaterialTheme.typography.bodyMedium)
                             if (e.hosts.isNotEmpty()) {
-                                Text("Gets data from: ${e.hosts.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.gets_data, e.hosts.joinToString(", ")), style = MaterialTheme.typography.bodySmall)
                             }
                             for (host in e.hosts.filter { it !in Sources.BUILT_IN_HOSTS && it !in hosts }) {
                                 TextButton(onClick = {
                                     Store(this@MainActivity).approveHost(host)
                                     hosts = Store(this@MainActivity).approvedHosts()
                                     RefreshWorker.now(this@MainActivity, force = true)
-                                }) { Text("Allow $host") }
+                                }) { Text(stringResource(R.string.allow_host, host)) }
                             }
                             if (e.needsCalendar && !calendarOk) {
-                                Text("Your calendar is read on the phone and never sent anywhere.", style = MaterialTheme.typography.bodySmall)
-                                TextButton(onClick = { askCalendar.launch(android.Manifest.permission.READ_CALENDAR) }) { Text("Allow calendar access") }
+                                Text(stringResource(R.string.calendar_note), style = MaterialTheme.typography.bodySmall)
+                                TextButton(onClick = { askCalendar.launch(android.Manifest.permission.READ_CALENDAR) }) { Text(stringResource(R.string.allow_calendar)) }
                             }
                             if ("health" in e.uses) {
                                 when {
                                     !Steps.available(this@MainActivity) ->
-                                        Text("Health Connect is not available on this phone, so steps cannot be shown.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                        Text(stringResource(R.string.hc_unavailable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                     !stepsOk -> {
-                                        Text("Steps come from Health Connect on this phone and are never sent anywhere.", style = MaterialTheme.typography.bodySmall)
-                                        TextButton(onClick = { askSteps.launch(Steps.PERMISSIONS) }) { Text("Allow step access") }
+                                        Text(stringResource(R.string.steps_note), style = MaterialTheme.typography.bodySmall)
+                                        TextButton(onClick = { askSteps.launch(Steps.PERMISSIONS) }) { Text(stringResource(R.string.allow_steps)) }
                                     }
                                     !stepsBackgroundOk -> {
-                                        Text("Also allow \"Access data in the background\" for Afterdrop in Health Connect, so the widget keeps updating while Afterdrop is closed.", style = MaterialTheme.typography.bodySmall)
-                                        TextButton(onClick = { askSteps.launch(Steps.PERMISSIONS) }) { Text("Allow background access") }
+                                        Text(stringResource(R.string.steps_background), style = MaterialTheme.typography.bodySmall)
+                                        TextButton(onClick = { askSteps.launch(Steps.PERMISSIONS) }) { Text(stringResource(R.string.allow_background)) }
                                     }
                                 }
                             }
                             if ("media" in e.uses && !mediaOk) {
                                 Text(
-                                    "To show what is playing, turn on notification access for Afterdrop. It only asks Android which song is playing; your notifications are not read or kept.",
+                                    stringResource(R.string.media_note),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
-                                TextButton(onClick = { runCatching { startActivity(NowPlaying.settingsIntent(this@MainActivity)) } }) { Text("Allow notification access") }
+                                TextButton(onClick = { runCatching { startActivity(NowPlaying.settingsIntent(this@MainActivity)) } }) { Text(stringResource(R.string.allow_notifications)) }
                                 Text(
-                                    "If Android says \"Restricted setting\": open App info, tap \u22EE at the top right, choose \"Allow restricted settings\", then try again.",
+                                    stringResource(R.string.restricted_hint),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
-                                TextButton(onClick = { runCatching { startActivity(NowPlaying.appInfoIntent(this@MainActivity)) } }) { Text("Open App info") }
+                                TextButton(onClick = { runCatching { startActivity(NowPlaying.appInfoIntent(this@MainActivity)) } }) { Text(stringResource(R.string.open_app_info)) }
                             }
                             if ("ai" in e.uses && key.isBlank()) {
-                                Text("Writes its text with Gemini: add your Gemini API key above.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.ai_needs_key), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                             if ("notes" in e.uses) {
-                                Text("Tap the widget to write. You can also share text from any app to Afterdrop.", style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.notes_hint), style = MaterialTheme.typography.bodySmall)
                             }
                             if (e.needsPlace && place == null) {
-                                Text("Set your city below to see weather and air quality.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.needs_place), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                             if (e.missing.isNotEmpty()) {
                                 Text(
-                                    "Shows dashes for now: ${e.missing.joinToString(", ")} data is not in this version.",
+                                    stringResource(R.string.missing_dashes, e.missing.joinToString(", ")),
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
                                 )
                             }
                             FlowRow(itemVerticalAlignment = Alignment.CenterVertically) {
                                 Button(onClick = { choose(e) { report = listOf(it) } }) {
-                                    Text(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) "Use this" else "Add to home screen")
+                                    Text(stringResource(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) R.string.use_this else R.string.add_home))
                                 }
                                 if (stackNames.isNotEmpty()) {
-                                    TextButton(onClick = { choose(e, stack = true) { askReport = listOf(it) } }) { Text("Add to stack") }
+                                    TextButton(onClick = { choose(e, stack = true) { askReport = listOf(it) } }) { Text(stringResource(R.string.add_stack)) }
                                 }
-                                TextButton(onClick = { previewing = e }) { Text("Preview") }
-                                TextButton(onClick = { startActivity(EditorActivity.intent(this@MainActivity, e.json, e.mine)) }) { Text("Edit design") }
+                                TextButton(onClick = { previewing = e }) { Text(stringResource(R.string.preview)) }
+                                TextButton(onClick = { startActivity(EditorActivity.intent(this@MainActivity, e.json, e.mine)) }) { Text(stringResource(R.string.edit_design)) }
                                 if (e.mine) {
                                     TextButton(enabled = !busy, onClick = {
                                         val spec = (SpecReader.read(e.json) as? SpecResult.Ok)?.spec
                                         when {
-                                            ask.isBlank() -> askReport = listOf("Type what to change in the box at the top, for example \"bigger number, secondary colour\", then press Change with AI on the widget.")
-                                            key.isBlank() -> askReport = listOf("Changing a widget needs a Gemini API key. Add one above.")
+                                            ask.isBlank() -> askReport = listOf(getString(R.string.change_hint))
+                                            key.isBlank() -> askReport = listOf(getString(R.string.change_needs_key))
                                             spec != null -> {
                                                 busy = true
-                                                askReport = listOf("Asking the model to change \"${e.name}\".")
+                                                askReport = listOf(getString(R.string.asking_change, e.name))
                                                 val wanted = ask
                                                 lifecycleScope.launch {
                                                     val out = withContext(Dispatchers.IO) {
                                                         runCatching {
                                                             val gemini = Gemini(GeminiTransport, key.trim(), Store(this@MainActivity).model)
-                                                            Generator.edit(spec, wanted, gemini).also { Store(this@MainActivity).model = gemini.modelName }
+                                                            Generator.edit(spec, wanted, gemini, language()).also { Store(this@MainActivity).model = gemini.modelName }
                                                         }
-                                                            .getOrElse { Outcome.Failed("Something went wrong: ${it.message}") }
+                                                            .getOrElse { Outcome.Failed(getString(R.string.went_wrong, it.message)) }
                                                     }
                                                     busy = false
                                                     askReport = when (out) {
@@ -419,18 +420,18 @@ class MainActivity : ComponentActivity() {
                                                             if (placed > 0) runCatching { AfterdropWidget.refreshAll(this@MainActivity) }
                                                             list = entries()
                                                             ask = ""
-                                                            listOf("Changed \"${out.spec.name}\"." + if (placed > 0) " $placed widget(s) on the home screen were updated." else "")
+                                                            listOf(if (placed > 0) getString(R.string.changed_placed, out.spec.name, placed) else getString(R.string.changed, out.spec.name))
                                                         }
-                                                        is Outcome.Failed -> listOf(out.reason, "The widget was left as it was.")
+                                                        is Outcome.Failed -> listOf(out.reason, getString(R.string.kept_as_it_was))
                                                     }
                                                 }
                                             }
                                         }
-                                    }) { Text("Change with AI") }
+                                    }) { Text(stringResource(R.string.change_ai)) }
                                     TextButton(onClick = {
                                         Store(this@MainActivity).deleteUserSpec(e.name)
                                         list = entries()
-                                    }) { Text("Delete") }
+                                    }) { Text(stringResource(R.string.delete)) }
                                 }
                             }
                         }
@@ -438,41 +439,41 @@ class MainActivity : ComponentActivity() {
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Weather place", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.place_title), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            place?.let { "Weather is shown for $it." } ?: "No place set. Weather widgets show dashes until you set one.",
+                            place?.let { stringResource(R.string.place_set, it) } ?: stringResource(R.string.place_none),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         OutlinedTextField(
                             value = city, onValueChange = { city = it.take(80) },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("City") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.city)) },
                         )
                         Button(enabled = city.isNotBlank(), onClick = {
                             val wanted = city
-                            cityReport = "Looking it up."
+                            cityReport = getString(R.string.looking_up)
                             lifecycleScope.launch {
                                 val found = withContext(Dispatchers.IO) {
                                     HttpsFetcher.get(NetworkSources.geocodeUrl(wanted))?.let { NetworkSources.parseGeocode(it) }
                                 }
-                                if (found == null) cityReport = "Could not find that place. Check the spelling and the connection."
+                                if (found == null) cityReport = getString(R.string.city_not_found)
                                 else {
                                     Store(this@MainActivity).home = found
                                     place = found.name
                                     city = ""
-                                    cityReport = "The city name was sent to open-meteo.com to find it. No location permission is used."
+                                    cityReport = getString(R.string.city_sent)
                                     RefreshWorker.now(this@MainActivity, force = true)
                                 }
                             }
-                        }) { Text("Set place") }
+                        }) { Text(stringResource(R.string.set_place)) }
                         if (cityReport.isNotEmpty()) Text(cityReport, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 item {
-                    Text("Paste a widget description", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.paste_title), style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = draft, onValueChange = { draft = it.take(SpecReader.MAX_BYTES) },
                         modifier = Modifier.fillMaxWidth(), minLines = 4, maxLines = 12,
-                        label = { Text("Widget JSON") },
+                        label = { Text(stringResource(R.string.paste_label)) },
                     )
                     Button(onClick = {
                         when (val r = SpecReader.read(draft, lenient = true)) {
@@ -480,11 +481,11 @@ class MainActivity : ComponentActivity() {
                                 Store(this@MainActivity).saveUserSpec(r.spec.name, Json.write(r.spec.json))
                                 list = entries()
                                 draft = ""
-                                report = listOf("Saved \"${r.spec.name}\". It is at the top of the list.")
+                                report = listOf(getString(R.string.saved_top, r.spec.name))
                             }
                             is SpecResult.Rejected -> report = r.problems.take(8).map { "${it.path}: ${it.message}" }
                         }
-                    }, enabled = draft.isNotBlank()) { Text("Check and save") }
+                    }, enabled = draft.isNotBlank()) { Text(stringResource(R.string.check_save)) }
                     for (line in report) Text(line, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -520,18 +521,18 @@ class MainActivity : ComponentActivity() {
                         WidgetPreview(e.json, size.first, size.second, dark = dark, limitHeight = 400.dp, refresh = refresh)
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (s in sizes) FilterChip(size == s, onClick = { size = s }, label = { Text("${s.first} × ${s.second}") })
+                        for (s in sizes) FilterChip(size == s, onClick = { size = s }, label = { Text(stringResource(R.string.size_chip, s.first, s.second)) })
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(dark == null, onClick = { dark = null }, label = { Text("Phone") })
-                        FilterChip(dark == false, onClick = { dark = false }, label = { Text("Light") })
-                        FilterChip(dark == true, onClick = { dark = true }, label = { Text("Dark") })
+                        FilterChip(dark == null, onClick = { dark = null }, label = { Text(stringResource(R.string.phone)) })
+                        FilterChip(dark == false, onClick = { dark = false }, label = { Text(stringResource(R.string.light)) })
+                        FilterChip(dark == true, onClick = { dark = true }, label = { Text(stringResource(R.string.dark)) })
                     }
-                    Text("Drawn with your real data. On the home screen you can resize it as well.", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.preview_note), style = MaterialTheme.typography.bodySmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-                        Button(onClick = onAdd) { Text(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) "Use this" else "Add to home screen") }
-                        TextButton(onClick = onEdit) { Text("Edit design") }
-                        TextButton(onClick = onDismiss) { Text("Close") }
+                        Button(onClick = onAdd) { Text(stringResource(if (bindId != AppWidgetManager.INVALID_APPWIDGET_ID) R.string.use_this else R.string.add_home)) }
+                        TextButton(onClick = onEdit) { Text(stringResource(R.string.edit_design)) }
+                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
                     }
                 }
             }

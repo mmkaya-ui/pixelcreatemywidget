@@ -20,6 +20,15 @@ object SpecEdit {
         val label: String,
         /** Can hold other parts. */
         val container: Boolean,
+        /**
+         * What kind of part this is, as a stable word the screen can translate: card, column, row, layer,
+         * list, icon, ring, bar, picture, space, or else the type itself (text, button, clock, ...).
+         */
+        val kind: String = type,
+        /** The words the person wrote in this part (its text, label or clock format), or null. */
+        val text: String? = null,
+        /** The icon name of an icon, or what a list is a list of; empty otherwise. */
+        val detail: String = "",
     )
 
     val CONTAINERS = setOf("col", "row", "box")
@@ -69,13 +78,31 @@ object SpecEdit {
         val out = ArrayList<Part>()
         fun walk(n: Map<String, Any?>, path: List<String>, depth: Int) {
             val type = n["t"] as? String ?: return
-            out += Part(path, depth, type, label(n), type in CONTAINERS)
+            out += Part(path, depth, type, label(n), type in CONTAINERS, kindOf(n), writtenText(n), detailOf(n))
             kids(n)?.forEachIndexed { i, k -> (k as? Map<*, *>)?.let { @Suppress("UNCHECKED_CAST") walk(it as Map<String, Any?>, path + i.toString(), depth + 1) } }
             @Suppress("UNCHECKED_CAST")
             (n["item"] as? Map<String, Any?>)?.let { walk(it, path + "item", depth + 1) }
         }
         node(doc, emptyList())?.let { walk(it, emptyList(), 0) }
         return out
+    }
+
+    private fun writtenText(n: Map<String, Any?>): String? = ((n["text"] ?: n["label"] ?: n["format"]) as? String)?.take(40)
+
+    private fun detailOf(n: Map<String, Any?>): String = when (n["t"]) {
+        "icon" -> n["icon"]?.toString() ?: ""
+        "list" -> n["of"]?.toString() ?: ""
+        else -> ""
+    }
+
+    /** See [Part.kind]. */
+    fun kindOf(n: Map<String, Any?>): String = when (val type = n["t"] as? String ?: "?") {
+        "col" -> if (n["bg"] != null && n["bg"] != "none") "card" else "column"
+        "box" -> "layer"
+        "spacer" -> "space"
+        "image" -> "picture"
+        "progress" -> if (n["shape"] == "ring") "ring" else "bar"
+        else -> type
     }
 
     fun label(n: Map<String, Any?>): String {
@@ -140,6 +167,33 @@ object SpecEdit {
         val moved = list.removeAt(i)
         list.add(j, moved)
         return out
+    }
+
+    /** Moves a part to place [to] among its siblings (0 is first); null when it cannot move there. */
+    fun moveTo(doc: Map<String, Any?>, path: List<String>, to: Int): MutableMap<String, Any?>? {
+        val from = path.lastOrNull()?.toIntOrNull() ?: return null
+        return if (to == from) null else move(doc, path, to - from)
+    }
+
+    /**
+     * Where a dragged part lands when it is let go over row [row] of [parts] (the list as shown): its place
+     * among its own siblings. Rows inside another part's own children count as that part's place, rows above
+     * the siblings mean first and rows below them mean last. Null when the part cannot be moved at all.
+     */
+    fun dropIndex(parts: List<Part>, dragged: List<String>, row: Int): Int? {
+        if (dragged.isEmpty() || dragged.last() == "item" || dragged.last().toIntOrNull() == null) return null
+        val parent = dragged.dropLast(1)
+        val siblings = parts.indices.filter { i ->
+            val p = parts[i].path
+            p.size > parent.size && p.subList(0, parent.size) == parent && p[parent.size].toIntOrNull() != null
+        }
+        if (siblings.isEmpty()) return null
+        val last = siblings.maxOf { parts[it].path[parent.size].toInt() }
+        return when {
+            row <= siblings.first() -> 0
+            row > siblings.last() -> last
+            else -> parts[row].path[parent.size].toInt()
+        }
     }
 
     /** The path a part has after [move]. */

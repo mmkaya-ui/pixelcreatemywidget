@@ -2,6 +2,7 @@ package dev.afterdrop.engine
 
 import dev.afterdrop.formula.Value
 import dev.afterdrop.spec.Json
+import dev.afterdrop.spec.Localize
 import dev.afterdrop.spec.SpecReader
 import dev.afterdrop.spec.SpecResult
 import dev.afterdrop.spec.WidgetSpec
@@ -115,6 +116,39 @@ private val resolving = suite("resolve") {
                 yes(r.all().map { it.key }.toList().let { it.size == it.toSet().size }, "${f.name}: keys must be unique")
             }
         }
+    }
+}
+
+private val speaking = suite("languages") {
+    val dir = File(goldenDir().parentFile, "app/src/main/assets/i18n")
+    val sample = data(
+        """{"wx":{"now":{"wind":18.4,"gust":31},"next3h":{"rainChance":35,"until":1794418200000}},
+           "fx":{"rate":38.5,"history":[38.1,38.2,38.5]},"hp":{"today":6500},"air":{"aqi":120},
+           "bat":{"level":15,"charging":false},"dev":{"storageFreeGb":42.3}}"""
+    )
+    for ((code, locale) in listOf("de" to Locale.GERMAN, "tr" to Locale.forLanguageTag("tr"))) {
+        test("every gallery widget resolves in $code at every size, with and without data, and shows the translated words") {
+            val words = Localize.words(File(dir, "$code.json").readText())
+            for (f in File(goldenDir(), "valid").listFiles()!!.filter { it.name.endsWith(".json") }) {
+                val s = (SpecReader.read(Localize.apply(f.readText(), words)) as SpecResult.Ok).spec
+                for (size in SizeClass.entries) for (d in listOf(emptyMap(), sample)) {
+                    val r = Engine.resolve(RenderInput(s, d, Vars.current(s, emptyMap(), NOW, BERLIN), NOW, BERLIN, locale, size))
+                    yes(r.all().map { it.key }.toList().let { it.size == it.toSet().size }, "${f.name} in $code: keys must be unique")
+                }
+            }
+        }
+    }
+    test("dates are written in the person's language, and numbers with their separators") {
+        val clock = Localize.apply(File(goldenDir(), "valid/holiday-countdown.json").readText(), emptyMap())
+        val s = (SpecReader.read(clock) as SpecResult.Ok).spec
+        val de = Engine.resolve(RenderInput(s, emptyMap(), Vars.current(s, emptyMap(), NOW, BERLIN), NOW, BERLIN, Locale.GERMAN, SizeClass.L))
+        val tr = Engine.resolve(RenderInput(s, emptyMap(), Vars.current(s, emptyMap(), NOW, BERLIN), NOW, BERLIN, Locale.forLanguageTag("tr"), SizeClass.L))
+        yes(texts(de).any { "Do" in it || "Don" in it || "Dez" in it || "Dezember" in it }, "German date: " + texts(de))
+        yes(texts(tr).any { "Cum" in it || "Ara" in it || "Pzt" in it || "Per" in it }, "Turkish date: " + texts(tr))
+        val rates = (SpecReader.read(File(goldenDir(), "valid/rates.json").readText()) as SpecResult.Ok).spec
+        val fx = data("""{"fx":{"rate":38.456,"history":[38.1,38.2,38.456]}}""")
+        val rde = Engine.resolve(RenderInput(rates, fx, Vars.current(rates, emptyMap(), NOW, BERLIN), NOW, BERLIN, Locale.GERMAN, SizeClass.L))
+        yes(texts(rde).any { "38,46" in it }, "German decimal comma: " + texts(rde))
     }
 }
 
@@ -270,4 +304,4 @@ private val fitting = suite("fit") {
     }
 }
 
-fun main() = runSuites(resolving, acting, variables, fitting)
+fun main() = runSuites(resolving, speaking, acting, variables, fitting)
